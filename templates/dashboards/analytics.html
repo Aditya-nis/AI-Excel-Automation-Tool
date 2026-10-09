@@ -1,0 +1,108 @@
+{% extends 'base/base.html' %}
+{% block title %}Analytics — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">📈 Multi-Dimensional Analytics</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Dynamic slicing, categorical distributions, and historical trends.</p>
+  </div>
+</div>
+
+<!-- Dynamic Slicing Toolbar -->
+<div class="card" style="margin-bottom: 24px; padding: 14px 20px;">
+  <form method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label style="font-weight: 700; font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Dimension:</label>
+      <select name="dim" class="form-control" style="width: auto; padding: 6px 12px;">
+        {% for d in dim_cols %}
+        <option value="{{ d }}" {% if d == active_dim %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label style="font-weight: 700; font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Metric Measure:</label>
+      <select name="meas" class="form-control" style="width: auto; padding: 6px 12px;">
+        {% for m in meas_cols %}
+        <option value="{{ m }}" {% if m == active_meas %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-sm">Update Analytics</button>
+  </form>
+</div>
+
+<!-- Analytical Charts Grid -->
+<div class="grid-cols-2" style="margin-bottom: 24px;">
+  <!-- Categorical Breakdown Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📊 {{ chart_payload.title|default:"Distribution Breakdown" }}</div>
+    </div>
+    <div style="height: 320px; position: relative;">
+      <canvas id="breakdown-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Historical Trend Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📈 {{ trend_payload.title|default:"Temporal Pacing Trend" }}</div>
+    </div>
+    <div style="height: 320px; position: relative;">
+      <canvas id="trend-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📋 Category Aggregation Summary Matrix</div>
+  </div>
+  {% if breakdown_table %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Category Segment</th>
+          <th>Total {{ active_meas|default:"Metric" }}</th>
+          <th>Average per Record</th>
+          <th>Record Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in breakdown_table %}
+        <tr>
+          <td><strong>{{ row.category }}</strong></td>
+          <td>{{ row.sum }}</td>
+          <td>{{ row.avg }}</td>
+          <td>{{ row.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+    No aggregations available for the selected dimensions.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    {% if chart_payload %}
+    renderChart('breakdown-chart', 'bar', {{ chart_payload.labels|safe }}, {{ chart_payload.values|safe }}, "{{ chart_payload.title }}");
+    {% endif %}
+
+    {% if trend_payload %}
+    renderChart('trend-chart', 'line', {{ trend_payload.labels|safe }}, {{ trend_payload.values|safe }}, "{{ trend_payload.title }}");
+    {% endif %}
+  });
+</script>
+{% endblock %}

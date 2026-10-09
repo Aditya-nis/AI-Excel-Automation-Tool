@@ -1,0 +1,158 @@
+{% extends 'base/base.html' %}
+
+{% block title %}AI Understanding - {{ dataset.name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="font-size: 22px; font-weight: 800;">AI Data Understanding & Confidence</h1>
+      <span class="badge badge-primary">v{{ version.version_number }}</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Statistical and heuristic role inferences grounded in column values, patterns, and schemas.
+    </p>
+  </div>
+  <a href="{% url 'dataset_detail' dataset.id %}" class="btn btn-sm">← Back to Dataset</a>
+</div>
+
+<!-- Honest AI Notice -->
+<div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #1e1b4b;">
+  <b>Governance Principle:</b> All semantic roles below are grounded statistical inferences accompanied by empirical evidence. High confidence (≥0.90), Medium (0.70–0.89), and Low (&lt;0.70) are review heuristics. You can accept or override any inference.
+</div>
+
+<!-- Assessments Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🧠 Inferred Semantic Roles</div>
+    <span class="badge badge-neutral">{{ assessments.count }} Columns Inferred</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Column Name</th>
+          <th>Inferred Role</th>
+          <th>Confidence</th>
+          <th>Evidence & Reasoning</th>
+          <th>Sample Values</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assessments %}
+        <tr>
+          <td><b>{{ a.column_name }}</b></td>
+          <td>
+            <span class="badge badge-primary" style="font-size: 12px;">
+              {% if a.user_override_role %}{{ a.user_override_role }} (Overridden){% else %}{{ a.inferred_role|upper }}{% endif %}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if a.confidence_band == 'high' %}badge-success{% elif a.confidence_band == 'medium' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ a.confidence_score|floatformat:2 }} ({{ a.confidence_band|upper }})
+            </span>
+          </td>
+          <td style="max-width: 320px; white-space: normal; font-size: 12px; color: var(--text-muted);">
+            {{ a.evidence }}
+          </td>
+          <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px;">
+            {{ a.sample_patterns|slice:":3"|join:", " }}
+          </td>
+          <td>
+            <span class="badge {% if a.review_status == 'accepted' %}badge-success{% elif a.review_status == 'overridden' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ a.get_review_status_display }}
+            </span>
+          </td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-sm btn-success" onclick="reviewRole({{ a.id }}, 'accept')">✓ Accept</button>
+              <button class="btn btn-sm" onclick="promptOverride({{ a.id }}, '{{ a.column_name }}')">✎ Override</button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No column assessments found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Override Modal -->
+<div class="modal-overlay" id="overrideModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="font-size: 16px; font-weight: 700;">Override Semantic Role</h3>
+      <button class="btn btn-sm" onclick="closeModal('overrideModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="overrideAssessmentId">
+      <div class="form-group">
+        <label class="form-label">Column:</label>
+        <b id="overrideColName" style="font-size: 14px;"></b>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Assign Role:</label>
+        <select id="newRoleSelect" class="form-control">
+          <option value="currency">Currency / Monetary Amount</option>
+          <option value="quantity">Quantity / Units</option>
+          <option value="date">Date / Chronological Period</option>
+          <option value="identifier">Unique Identifier / Key</option>
+          <option value="dimension">Dimension (Category)</option>
+          <option value="status">Status / Stage</option>
+          <option value="percentage">Percentage / Rate</option>
+          <option value="measure">Numeric Measure</option>
+          <option value="text">General Text</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('overrideModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitOverride()">Save Override</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function reviewRole(assessmentId, action) {
+    apiRequest('/api/v1/understanding/review/', 'POST', {
+      assessment_id: assessmentId,
+      action: action
+    })
+    .then(() => {
+      showToast('Semantic assessment accepted ✓');
+      setTimeout(() => location.reload(), 600);
+    })
+    .catch(err => showToast(err.message, true));
+  }
+
+  function promptOverride(assessmentId, colName) {
+    document.getElementById('overrideAssessmentId').value = assessmentId;
+    document.getElementById('overrideColName').textContent = colName;
+    openModal('overrideModal');
+  }
+
+  function submitOverride() {
+    const id = document.getElementById('overrideAssessmentId').value;
+    const role = document.getElementById('newRoleSelect').value;
+    apiRequest('/api/v1/understanding/review/', 'POST', {
+      assessment_id: id,
+      action: 'override',
+      override_role: role
+    })
+    .then(() => {
+      closeModal('overrideModal');
+      showToast('Role overridden successfully ✓');
+      setTimeout(() => location.reload(), 600);
+    })
+    .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

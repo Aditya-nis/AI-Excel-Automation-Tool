@@ -1,0 +1,261 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Cleaning & Version History - {{ dataset.name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="font-size: 22px; font-weight: 800;">Transformation Engine & Undo Lineage</h1>
+      <span class="badge badge-primary">Active: v{{ dataset.active_version.version_number }}</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Every transformation produces an immutable derived version. History is fully preserved with undo and restore.
+    </p>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    {% if dataset.active_version.parent_version %}
+    <button class="btn btn-danger btn-sm" onclick="undoVersion()">↶ Undo to v{{ dataset.active_version.parent_version.version_number }}</button>
+    {% endif %}
+    <a href="{% url 'dataset_detail' dataset.id %}" class="btn btn-sm">← Back to Dataset</a>
+  </div>
+</div>
+
+<!-- Manual Transformation Studio -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🧹 Apply New Cleaning Transformation</div>
+    <span class="badge badge-neutral">Atomic & Reversible</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+    <div class="form-group">
+      <label class="form-label">Operation:</label>
+      <select id="opTypeSelect" class="form-control" onchange="updateParamFields(this.value)">
+        <option value="trim_whitespace">Trim Whitespace</option>
+        <option value="change_case">Standardize Casing</option>
+        <option value="normalize_date">Normalize Dates (ISO)</option>
+        <option value="convert_type">Convert Column Type</option>
+        <option value="remove_duplicates">Remove Duplicate Rows</option>
+        <option value="fill_missing">Fill Missing Values</option>
+        <option value="drop_missing">Drop Missing Rows</option>
+        <option value="filter_rows">Filter Records</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Target Column:</label>
+      <select id="targetColSelect" class="form-control">
+        <option value="">(All Columns or Auto)</option>
+        {% for col in dataset.active_version.columns.all %}
+        <option value="{{ col.name }}">{{ col.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" id="paramField1">
+      <label class="form-label" id="paramLabel1">Parameter:</label>
+      <input type="text" id="paramInput1" class="form-control" placeholder="Optional parameter">
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px;">
+    <button class="btn" onclick="previewTransformation()">👁️ Preview Impact (Dry-Run)</button>
+    <button class="btn btn-primary" onclick="commitTransformation()">⚡ Execute Transformation</button>
+  </div>
+</div>
+
+<!-- Version History Timeline -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📜 Immutable Version History</div>
+    <span class="badge badge-primary">{{ versions.count }} Versions Recorded</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Version</th>
+          <th>Parent</th>
+          <th>Records</th>
+          <th>Columns</th>
+          <th>Quality Score</th>
+          <th>Changes Summary</th>
+          <th>Created At</th>
+          <th>Status / Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in versions %}
+        <tr {% if v.id == dataset.active_version.id %}style="background: #eef2ff;"{% endif %}>
+          <td>
+            <b>v{{ v.version_number }}</b>
+            {% if v.id == dataset.active_version.id %}
+            <span class="badge badge-primary" style="margin-left: 6px;">CURRENT</span>
+            {% endif %}
+          </td>
+          <td>{% if v.parent_version %}v{{ v.parent_version.version_number }}{% else %}<i>Source File</i>{% endif %}</td>
+          <td>{{ v.row_count }}</td>
+          <td>{{ v.column_count }}</td>
+          <td>
+            <span class="badge {% if v.quality_score >= 85 %}badge-success{% elif v.quality_score >= 70 %}badge-warning{% else %}badge-danger{% endif %}">
+              {{ v.quality_score }}%
+            </span>
+          </td>
+          <td style="max-width: 280px; white-space: normal; font-size: 12px;">
+            {{ v.change_summary|default:"Initial ingestion" }}
+          </td>
+          <td>{{ v.created_at|date:"Y-m-d H:i" }}</td>
+          <td>
+            {% if v.id != dataset.active_version.id %}
+            <button class="btn btn-sm" onclick="restoreVersion({{ v.version_number }})">↶ Restore This Version</button>
+            {% else %}
+            <span style="font-size: 12px; color: var(--text-muted);">Active in Views</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Dry Run Preview Modal -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal-box" style="max-width: 800px;">
+    <div class="modal-header">
+      <h3 style="font-size: 16px; font-weight: 700;">Dry-Run Transformation Preview</h3>
+      <button class="btn btn-sm" onclick="closeModal('previewModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="previewStats" style="margin-bottom: 14px; font-size: 13px;"></div>
+      <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Sample Records After Transformation:</h4>
+      <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+        <table class="data-table" id="previewTable"></table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('previewModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="commitTransformation(); closeModal('previewModal');">Apply Changes Now</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function updateParamFields(op) {
+    const p1 = document.getElementById('paramField1');
+    const l1 = document.getElementById('paramLabel1');
+    const inp1 = document.getElementById('paramInput1');
+
+    if (op === 'change_case') {
+      l1.textContent = 'Case Format (title, upper, lower):';
+      inp1.placeholder = 'title';
+      inp1.value = 'title';
+    } else if (op === 'convert_type') {
+      l1.textContent = 'Target Type (numeric, integer, text):';
+      inp1.placeholder = 'numeric';
+      inp1.value = 'numeric';
+    } else if (op === 'remove_duplicates') {
+      l1.textContent = 'Keep (first, last):';
+      inp1.placeholder = 'first';
+      inp1.value = 'first';
+    } else if (op === 'fill_missing') {
+      l1.textContent = 'Strategy or Literal Value:';
+      inp1.placeholder = 'literal or mean, median, mode';
+      inp1.value = 'N/A';
+    } else if (op === 'filter_rows') {
+      l1.textContent = 'Condition Value:';
+      inp1.placeholder = 'Value to match';
+      inp1.value = '';
+    } else {
+      l1.textContent = 'Parameter:';
+      inp1.placeholder = '';
+      inp1.value = '';
+    }
+  }
+
+  function getStepConfig() {
+    const op = document.getElementById('opTypeSelect').value;
+    const col = document.getElementById('targetColSelect').value;
+    const pVal = document.getElementById('paramInput1').value;
+    
+    let params = {};
+    if (op === 'change_case') params.case_type = pVal || 'title';
+    if (op === 'convert_type') params.target_type = pVal || 'numeric';
+    if (op === 'remove_duplicates') params.keep = pVal || 'first';
+    if (op === 'fill_missing') {
+      params.strategy = ['mean', 'median', 'mode', 'ffill', 'bfill'].includes(pVal) ? pVal : 'literal';
+      params.fill_value = pVal;
+    }
+    if (op === 'filter_rows') {
+      params.operator = 'eq';
+      params.value = pVal;
+    }
+
+    return [{ operation_type: op, column_name: col, parameters: params }];
+  }
+
+  function previewTransformation() {
+    const steps = getStepConfig();
+    apiRequest('/api/v1/cleaning/preview/', 'POST', {
+      dataset_id: {{ dataset.id }},
+      steps: steps
+    })
+    .then(data => {
+      document.getElementById('previewStats').innerHTML = `
+        Rows before: <b>${data.total_rows_before}</b> | Rows after: <b>${data.total_rows_after}</b> | 
+        ${data.steps.map(s => s.description).join('; ')}
+      `;
+
+      const tbl = document.getElementById('previewTable');
+      if (data.after_sample.length > 0) {
+        const cols = Object.keys(data.after_sample[0]);
+        let html = '<thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+        data.after_sample.forEach(r => {
+          html += '<tr>' + cols.map(c => `<td>${r[c] ?? ''}</td>`).join('') + '</tr>';
+        });
+        html += '</tbody>';
+        tbl.innerHTML = html;
+      }
+      openModal('previewModal');
+    })
+    .catch(err => showToast(err.message, true));
+  }
+
+  function commitTransformation() {
+    const steps = getStepConfig();
+    apiRequest('/api/v1/cleaning/execute/', 'POST', {
+      dataset_id: {{ dataset.id }},
+      steps: steps
+    })
+    .then(res => {
+      showToast(`Created v${res.version_number} successfully ✓`);
+      setTimeout(() => location.reload(), 700);
+    })
+    .catch(err => showToast(err.message, true));
+  }
+
+  function undoVersion() {
+    if (!confirm('Revert active dataset to parent version?')) return;
+    apiRequest('/api/v1/datasets/{{ dataset.id }}/undo/', 'POST')
+      .then(res => {
+        showToast(`Reverted back to v${res.active_version} ✓`);
+        setTimeout(() => location.reload(), 700);
+      })
+      .catch(err => showToast(err.message, true));
+  }
+
+  function restoreVersion(vNum) {
+    if (!confirm(`Restore v${vNum} as active version?`)) return;
+    apiRequest('/api/v1/datasets/{{ dataset.id }}/restore/', 'POST', { version_number: vNum })
+      .then(res => {
+        showToast(`Restored v${vNum} successfully ✓`);
+        setTimeout(() => location.reload(), 700);
+      })
+      .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

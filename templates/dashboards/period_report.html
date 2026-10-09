@@ -1,0 +1,101 @@
+{% extends 'base/base.html' %}
+{% block title %}{{ grain_name }} — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">📑 {{ grain_name }}</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Time-series MIS aggregation with period-over-period growth rates and run-rate variance.</p>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <a href="{% url 'daily_report' %}" class="btn {% if grain_name == 'Daily MIS Report' %}btn-primary{% endif %} btn-sm">Daily</a>
+    <a href="{% url 'weekly_report' %}" class="btn {% if grain_name == 'Weekly MIS Report' %}btn-primary{% endif %} btn-sm">Weekly</a>
+    <a href="{% url 'monthly_report' %}" class="btn {% if grain_name == 'Monthly MIS Report' %}btn-primary{% endif %} btn-sm">Monthly</a>
+    <a href="{% url 'yearly_report' %}" class="btn {% if grain_name == 'Yearly MIS Report' %}btn-primary{% endif %} btn-sm">Yearly</a>
+  </div>
+</div>
+
+<!-- Period Totals Summary -->
+<div class="grid-cols-3" style="margin-bottom: 24px;">
+  <div class="kpi-card">
+    <div class="kpi-label">Cumulative {{ meas_col|default:"Volume" }}</div>
+    <div class="kpi-value">{{ total_val }}</div>
+    <div class="kpi-sub">Total over all tracked periods</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Active Time Periods</div>
+    <div class="kpi-value">{{ period_rows|length }}</div>
+    <div class="kpi-sub">Grouped temporal intervals</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total Transactions / Records</div>
+    <div class="kpi-value">{{ total_count }}</div>
+    <div class="kpi-sub">Verified dataset rows</div>
+  </div>
+</div>
+
+<!-- Period Trend Chart -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">📈 {{ chart_payload.title|default:"Period Trend Progression" }}</div>
+  </div>
+  <div style="height: 280px; position: relative;">
+    <canvas id="period-chart"></canvas>
+  </div>
+</div>
+
+<!-- Detailed Period-over-Period Statement Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📋 Period Financial & Operational Statement</div>
+  </div>
+  {% if period_rows %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Period Interval</th>
+          <th>Total Sum</th>
+          <th>Average per Item</th>
+          <th>Transaction Count</th>
+          <th>Period-over-Period Growth</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in period_rows %}
+        <tr>
+          <td><strong>{{ r.period }}</strong></td>
+          <td>{{ r.sum }}</td>
+          <td>{{ r.avg }}</td>
+          <td>{{ r.count }}</td>
+          <td>
+            {% if r.growth is not None %}
+              <span class="badge {% if r.growth > 0 %}badge-success{% elif r.growth < 0 %}badge-danger{% else %}badge-neutral{% endif %}">
+                {% if r.growth > 0 %}+{% endif %}{{ r.growth }}%
+              </span>
+            {% else %}
+              <span style="color: var(--text-muted); font-size: 11px;">Baseline</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+    No date-stamped records found in the active dataset. Ensure your dataset includes a date column.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    {% if chart_payload %}
+    renderChart('period-chart', 'bar', {{ chart_payload.labels|safe }}, {{ chart_payload.values|safe }}, "{{ chart_payload.title }}");
+    {% endif %}
+  });
+</script>
+{% endblock %}

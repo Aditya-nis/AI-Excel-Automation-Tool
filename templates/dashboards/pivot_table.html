@@ -1,0 +1,92 @@
+{% extends 'base/base.html' %}
+{% block title %}Pivot Table — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🗂️ Interactive Pivot Table Builder</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Dynamic multi-dimensional cross-tabulation matrix with row totals and grand totals.</p>
+  </div>
+  {% if pivot_html %}
+  <div>
+    <a href="?row={{ row_col }}&col={{ col_col }}&val={{ val_col }}&agg={{ agg_func }}&export=csv" class="btn btn-success btn-sm">📥 Export Pivot CSV</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Pivot Builder Selector Form -->
+<div class="card" style="margin-bottom: 24px; padding: 16px 20px;">
+  <form method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+    <!-- Row Field -->
+    <div>
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Row Dimension (Index):</label>
+      <select name="row" class="form-control" style="padding: 7px 12px;">
+        {% for c in cat_cols %}
+        <option value="{{ c }}" {% if c == row_col %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Column Field -->
+    <div>
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Column Dimension:</label>
+      <select name="col" class="form-control" style="padding: 7px 12px;">
+        {% for c in cat_cols %}
+        <option value="{{ c }}" {% if c == col_col %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Value Metric -->
+    <div>
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Value Field (Metric):</label>
+      <select name="val" class="form-control" style="padding: 7px 12px;">
+        {% for m in num_cols %}
+        <option value="{{ m }}" {% if m == val_col %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Aggregator -->
+    <div>
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Aggregation:</label>
+      <select name="agg" class="form-control" style="padding: 7px 12px;">
+        <option value="sum" {% if agg_func == 'sum' %}selected{% endif %}>Sum (Total)</option>
+        <option value="mean" {% if agg_func == 'mean' %}selected{% endif %}>Mean (Average)</option>
+        <option value="count" {% if agg_func == 'count' %}selected{% endif %}>Count</option>
+        <option value="min" {% if agg_func == 'min' %}selected{% endif %}>Min</option>
+        <option value="max" {% if agg_func == 'max' %}selected{% endif %}>Max</option>
+      </select>
+    </div>
+
+    <div style="align-self: flex-end;">
+      <button type="submit" class="btn btn-primary" style="padding: 8px 18px;">Build Matrix</button>
+    </div>
+  </form>
+</div>
+
+<!-- Pivot Table Render -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <span>📊 Pivot: <strong>{{ row_col|default:"Row" }}</strong> × <strong>{{ col_col|default:"Column" }}</strong> ({{ agg_func|upper }} of {{ val_col|default:"Metric" }})</span>
+    </div>
+  </div>
+
+  {% if error_msg %}
+  <div style="padding: 14px; background: var(--danger-light); color: var(--danger); border-radius: 8px; margin-bottom: 16px;">
+    <strong>Calculation Warning:</strong> {{ error_msg }}
+  </div>
+  {% endif %}
+
+  {% if pivot_html %}
+  <div class="table-responsive" style="overflow-x: auto;">
+    {{ pivot_html|safe }}
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+    Select dimensions and click "Build Matrix" to compute your dynamic pivot table.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,230 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Dashboard - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+  <div>
+    <h1 style="font-size: 22px; font-weight: 800; letter-spacing: -0.4px;">Enterprise Analytics Dashboard</h1>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Governed metrics, automated data quality, and MIS reporting.</p>
+  </div>
+  {% if datasets %}
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Active Dataset:</label>
+    <select class="form-control" style="width: auto; font-weight: 600;" onchange="location.href='?dataset_id=' + this.value">
+      {% for d in datasets %}
+      <option value="{{ d.id }}" {% if d.id == selected_dataset.id %}selected{% endif %}>{{ d.name }} (v{{ d.active_version.version_number }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Top Metrics Grid -->
+<div class="grid-cols-4" style="margin-bottom: 24px;">
+  <div class="kpi-card">
+    <div class="kpi-label">Datasets</div>
+    <div class="kpi-value">{{ total_datasets }}</div>
+    <div class="kpi-sub">In workspace</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Active Records</div>
+    <div class="kpi-value">{{ total_rows|default:0 }}</div>
+    <div class="kpi-sub">Total rows managed</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Avg Quality Score</div>
+    <div class="kpi-value" style="color: {% if avg_quality >= 85 %}var(--success){% elif avg_quality >= 70 %}var(--warning){% else %}var(--danger){% endif %};">
+      {{ avg_quality }}%
+    </div>
+    <div class="kpi-sub">Governed data health</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">MIS Reports</div>
+    <div class="kpi-value">{{ total_reports }}</div>
+    <div class="kpi-sub">Published runs</div>
+  </div>
+</div>
+
+{% if not selected_dataset %}
+  <!-- Empty State -->
+  <div class="card" style="text-align: center; padding: 60px 20px;">
+    <div style="font-size: 40px; margin-bottom: 12px;">📁</div>
+    <h3 style="font-size: 18px; font-weight: 700;">No Datasets Uploaded Yet</h3>
+    <p style="font-size: 13.5px; color: var(--text-muted); max-width: 460px; margin: 8px auto 20px;">
+      Upload an Excel (.xlsx, .xls) or CSV file to immediately profile structure, evaluate data quality, and generate governed MIS reports.
+    </p>
+    <a href="{% url 'upload' %}" class="btn btn-primary">📤 Upload Your First File</a>
+  </div>
+{% else %}
+
+  <!-- Dataset Header & Quick Actions -->
+  <div class="card" style="padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div>
+        <h2 style="font-size: 17px; font-weight: 700;">{{ selected_dataset.name }}</h2>
+        <div style="font-size: 12.5px; color: var(--text-muted); display: flex; gap: 12px; margin-top: 2px;">
+          <span>Version: <b>v{{ selected_dataset.active_version.version_number }}</b></span>
+          <span>Rows: <b>{{ selected_dataset.active_version.row_count }}</b></span>
+          <span>Columns: <b>{{ selected_dataset.active_version.column_count }}</b></span>
+          <span>Quality: <b style="color: {% if selected_dataset.active_version.quality_score >= 85 %}var(--success){% elif selected_dataset.active_version.quality_score >= 70 %}var(--warning){% else %}var(--danger){% endif %};">{{ selected_dataset.active_version.quality_score }}%</b></span>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <a href="{% url 'understanding' selected_dataset.id %}" class="btn btn-sm">🧠 Review AI Roles</a>
+      <a href="{% url 'data_quality' selected_dataset.id %}" class="btn btn-sm">🛡️ Data Quality Center</a>
+      <a href="{% url 'transformations' selected_dataset.id %}" class="btn btn-sm">🧹 Clean & Undo</a>
+      <a href="{% url 'ask_data' %}?dataset_id={{ selected_dataset.id }}" class="btn btn-sm btn-primary">💬 Ask This Data</a>
+    </div>
+  </div>
+
+  <!-- Dynamic KPIs from Real Data -->
+  {% if kpis %}
+  <div class="grid-cols-4" style="margin-bottom: 20px;">
+    {% for k in kpis %}
+    <div class="card" style="margin: 0; padding: 14px;">
+      <div style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">{{ k.label }}</div>
+      <div style="font-size: 20px; font-weight: 800; color: var(--text-main); margin-top: 4px;">
+        {% if k.role == 'currency' %}₹{% endif %}{{ k.value }}
+      </div>
+      <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Average: {{ k.avg }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Chart & Profile Overview -->
+  <div class="grid-cols-2" style="margin-bottom: 20px;">
+    <!-- Visual Distribution Chart -->
+    <div class="card" style="margin: 0;">
+      <div class="card-header">
+        <div class="card-title">📈 Metric Distribution</div>
+        <span class="badge badge-primary">Dynamic Chart</span>
+      </div>
+      <div style="height: 280px; position: relative;">
+        {% if chart_data %}
+        <canvas id="mainDashboardChart"></canvas>
+        {% else %}
+        <div style="display: grid; place-items: center; height: 100%; color: var(--text-muted); font-size: 13px;">
+          No categorical groupings available for chart visualization.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Column Schema & Role Overview -->
+    <div class="card" style="margin: 0;">
+      <div class="card-header">
+        <div class="card-title">📋 Schema & Semantic Roles</div>
+        <a href="{% url 'understanding' selected_dataset.id %}" style="font-size: 12px; color: var(--primary); text-decoration: none; font-weight: 600;">View Inferences →</a>
+      </div>
+      <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Semantic Role</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in columns %}
+            <tr>
+              <td><b>{{ c.name }}</b></td>
+              <td><span class="badge badge-neutral">{{ c.data_type }}</span></td>
+              <td><span class="badge badge-primary">{{ c.inferred_role }}</span></td>
+              <td>
+                <span class="badge {% if c.confidence_band == 'high' %}badge-success{% elif c.confidence_band == 'medium' %}badge-warning{% else %}badge-neutral{% endif %}">
+                  {{ c.confidence_score|floatformat:2 }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Data Preview Table -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📄 Data Records Preview</div>
+        <div class="card-subtitle">Displaying first 15 records of v{{ selected_dataset.active_version.version_number }}. (Preserves exact source data)</div>
+      </div>
+      <a href="{% url 'dataset_detail' selected_dataset.id %}" class="btn btn-sm">Full Table Explorer →</a>
+    </div>
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            {% for c in columns %}
+            <th>{{ c.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in preview_rows %}
+          <tr>
+            {% for c in columns %}
+            <td>{{ r|escape }}</td>
+            {% endfor %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{{ columns|length|default:1 }}" style="text-align: center; color: var(--text-muted); padding: 20px;">No preview rows available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endif %}
+
+<!-- Audit Events -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🛡️ Recent Security & Audit Trail</div>
+    <a href="{% url 'audit' %}" style="font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">View All Logs →</a>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Actor</th>
+          <th>Event Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recent_audits %}
+        <tr>
+          <td>{{ a.timestamp|date:"Y-m-d H:i:s" }}</td>
+          <td><b>{{ a.actor_username|default:"System" }}</b></td>
+          <td><span class="badge badge-neutral">{{ a.event_type }}</span></td>
+          <td>{{ a.description }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 14px;">No audit events recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if chart_data %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const labels = {{ chart_data.labels|safe }};
+    const values = {{ chart_data.values|safe }};
+    const title = "{{ chart_data.title|escapejs }}";
+    renderChart('mainDashboardChart', 'bar', labels, values, title);
+  });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends 'base/base.html' %}
+{% block title %}Data Overview — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">📊 Data Overview</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Inspect active dataset schema, column profiling statistics, and live row samples.</p>
+  </div>
+  {% if datasets %}
+  <div class="workspace-selector">
+    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Dataset:</label>
+    <select onchange="window.location.href='?dataset_id=' + this.value">
+      {% for ds in datasets %}
+      <option value="{{ ds.id }}" {% if ds.id == selected_dataset.id %}selected{% endif %}>{{ ds.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Dataset Summary Strip -->
+{% if selected_dataset %}
+<div class="grid-cols-4" style="margin-bottom: 24px;">
+  <div class="kpi-card">
+    <div class="kpi-label">Active Version</div>
+    <div class="kpi-value">v{{ selected_dataset.active_version.version_number|default:"1" }}</div>
+    <div class="kpi-sub">Parquet immutable store</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total Rows</div>
+    <div class="kpi-value">{{ total_rows|default:"0" }}</div>
+    <div class="kpi-sub">Verified record count</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Columns</div>
+    <div class="kpi-value">{{ columns.count }}</div>
+    <div class="kpi-sub">Profiled schema fields</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Quality Score</div>
+    <div class="kpi-value" style="color: var(--success);">{{ selected_dataset.active_version.quality_score|default:"100.0" }}%</div>
+    <div class="kpi-sub">4-pillar composite score</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Schema & Profiling Matrix -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">📋 Schema Definitions & Profile Stats</div>
+  </div>
+  {% if columns %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Type</th>
+          <th>Role</th>
+          <th>Nulls</th>
+          <th>Distinct</th>
+          <th>Min Value</th>
+          <th>Max Value</th>
+          <th>Average</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for col in columns %}
+        <tr>
+          <td><strong>{{ col.name }}</strong></td>
+          <td><code>{{ col.data_type }}</code></td>
+          <td><span class="badge badge-primary">{{ col.inferred_role }}</span></td>
+          <td>{{ col.profile.null_count|default:"0" }} <span style="color: var(--text-muted); font-size: 11px;">({{ col.profile.null_percentage|default:"0.0" }}%)</span></td>
+          <td>{{ col.profile.distinct_count|default:"-" }}</td>
+          <td>{{ col.profile.min_value|default:"-" }}</td>
+          <td>{{ col.profile.max_value|default:"-" }}</td>
+          <td>{{ col.profile.mean_value|default:"-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 20px; color: var(--text-muted);">No columns found.</div>
+  {% endif %}
+</div>
+
+<!-- Raw Data Samples Preview -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🔍 Data Sample Rows Preview (First 50 Rows)</div>
+    <a href="{% url 'search_filter' %}" class="btn btn-sm">Full Interactive Search & Filter</a>
+  </div>
+  {% if preview_rows %}
+  <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          {% for k in preview_rows.0.keys %}
+          <th>{{ k }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in preview_rows %}
+        <tr>
+          {% for val in row.values %}
+          <td>{{ val|default:"-" }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+    No records available for preview.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

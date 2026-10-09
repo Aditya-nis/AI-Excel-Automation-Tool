@@ -1,0 +1,56 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Audit Trail - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <h1 style="font-size: 22px; font-weight: 800;">📋 Governance & Tamper-Evident Audit Trail</h1>
+  <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+    Append-only security and operational audit records across authentication, data transformations, and report executions.
+  </p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🛡️ Recorded Audit Events</div>
+    <span class="badge badge-neutral">Showing recent {{ events.count }} events</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Actor</th>
+          <th>Event Type</th>
+          <th>Object</th>
+          <th>Description</th>
+          <th>IP Address</th>
+          <th>Metadata Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in events %}
+        <tr>
+          <td><code style="font-size: 12px;">{{ a.timestamp|date:"Y-m-d H:i:s" }}</code></td>
+          <td><b>{{ a.actor_username|default:"System" }}</b></td>
+          <td><span class="badge badge-neutral">{{ a.event_type }}</span></td>
+          <td>{{ a.object_type }} {% if a.object_id %}#{{ a.object_id }}{% endif %}</td>
+          <td style="max-width: 320px; white-space: normal; font-size: 12.5px;">{{ a.description }}</td>
+          <td><small style="color: var(--text-muted);">{{ a.ip_address|default:"-" }}</small></td>
+          <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <code style="font-size: 11px;">{{ a.metadata }}</code>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No audit records found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

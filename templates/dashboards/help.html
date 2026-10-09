@@ -1,0 +1,84 @@
+{% extends 'base/base.html' %}
+{% block title %}Help & Documentation — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">❓ Help & Operational Guide</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Complete platform documentation, formula standards, workflow procedures, and shortcuts.</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">📖 End-to-End Operational Pipeline</div>
+  </div>
+  <div style="font-size: 13.5px; line-height: 1.6;">
+    <p>The AI Power BI platform follows an immutable, governed business intelligence lifecycle:</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 14px;">
+      <div style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
+        <div style="font-weight: 700; color: var(--primary);">1. Ingestion</div>
+        <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Upload CSV/XLSX. Files are validated, fingerprinted with SHA-256, and stored as immutable Parquet versions.</div>
+      </div>
+      <div style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
+        <div style="font-weight: 700; color: var(--primary);">2. Profiling</div>
+        <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Automated statistical profiling calculates quartiles, null percentages, distinct cardinality, and IQR outliers.</div>
+      </div>
+      <div style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
+        <div style="font-weight: 700; color: var(--primary);">3. Cleaning & Undo</div>
+        <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Reversible transformation engine saves atomic derived versions (v2, v3). 1-click instant rollback to any parent.</div>
+      </div>
+      <div style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
+        <div style="font-weight: 700; color: var(--primary);">4. Reconciliation</div>
+        <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Financial control totals verify that inputs match outputs. Critical breaks trigger publication blocks.</div>
+      </div>
+      <div style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
+        <div style="font-weight: 700; color: var(--primary);">5. MIS Publication</div>
+        <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Daily, Weekly, Monthly, and Yearly reports are compiled into executive PDFs, formatted Excel, and raw CSV.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid-cols-2">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📐 Formula & Integrity Standards</div>
+    </div>
+    <div style="font-size: 13px; line-height: 1.6;">
+      <ul style="padding-left: 18px; display: flex; flex-direction: column; gap: 8px;">
+        <li><strong>Zero Fabrication Rule:</strong> No fake KPIs or hallucinations. If data is absent, honest empty states are rendered.</li>
+        <li><strong>Decimal Precision:</strong> Financial numbers use Python `Decimal` arithmetic with round half-up behavior.</li>
+        <li><strong>Safe Division:</strong> Division by zero evaluates to <code>None</code> with documented notice, never infinite or fabricated numbers.</li>
+        <li><strong>Growth Rates:</strong> <code>(Current - Baseline) / |Baseline| * 100</code>. When baseline is 0, growth returns explicit indeterminate notice.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">⌨️ Keyboard Shortcuts & Quick Navigation</div>
+    </div>
+    <div style="font-size: 13px; line-height: 1.6;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0;"><strong>MIS Home</strong></td>
+          <td><kbd style="padding: 2px 6px; background: var(--border); border-radius: 4px;">H</kbd> or click 🏠</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Ask AI</strong></td>
+          <td><kbd style="padding: 2px 6px; background: var(--border); border-radius: 4px;">/ask-ai/</kbd></td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Search & Filter</strong></td>
+          <td><kbd style="padding: 2px 6px; background: var(--border); border-radius: 4px;">/search-filter/</kbd></td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Pivot Table</strong></td>
+          <td><kbd style="padding: 2px 6px; background: var(--border); border-radius: 4px;">/pivot-table/</kbd></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base/base.html' %}
+{% block title %}Report History — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">📑 Report History & Archival Ledger</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Immutable repository of all executed MIS report runs, verified outputs, and export downloads.</p>
+  </div>
+  <div>
+    <a href="{% url 'reports' %}" class="btn btn-primary">➕ Generate New Report</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Generated MIS Report Runs ({{ report_runs.count }})</div>
+  </div>
+  {% if report_runs %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Report Title</th>
+          <th>Type</th>
+          <th>Dataset Version</th>
+          <th>Generated At</th>
+          <th>Summary KPIs</th>
+          <th>Export Files</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in report_runs %}
+        <tr>
+          <td>
+            <div style="font-weight: 700;">{{ r.report_definition.name }}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Run ID #{{ r.id }}</div>
+          </td>
+          <td><span class="badge badge-primary">{{ r.report_definition.report_type|upper }}</span></td>
+          <td><code>v{{ r.dataset_version.version_number|default:"1" }}</code></td>
+          <td>{{ r.generated_at|date:"Y-m-d H:i:s" }}</td>
+          <td>
+            {% if r.summary_kpis %}
+            <div style="font-size: 12px; display: flex; flex-direction: column; gap: 2px;">
+              {% for k, v in r.summary_kpis.items %}
+              <span><strong>{{ k }}:</strong> {{ v }}</span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span style="color: var(--text-muted); font-size: 11px;">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              {% if r.excel_export_path %}
+              <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=excel" class="btn btn-sm btn-success" title="Download Excel">Excel</a>
+              {% endif %}
+              {% if r.pdf_export_path %}
+              <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=pdf" class="btn btn-sm btn-primary" title="Download PDF">PDF</a>
+              {% endif %}
+              {% if r.csv_export_path %}
+              <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=csv" class="btn btn-sm" title="Download CSV">CSV</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+    No historical report runs found. Reports generated via the builder will be archived here.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

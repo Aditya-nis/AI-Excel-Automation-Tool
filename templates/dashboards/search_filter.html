@@ -1,0 +1,87 @@
+{% extends 'base/base.html' %}
+{% block title %}Search & Filter — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🔎 Search & Filter</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Interactive multi-column search engine and targeted data slicing.</p>
+  </div>
+  {% if filtered_rows %}
+  <div>
+    <a href="?q={{ query }}&col={{ filter_col }}&val={{ filter_val }}&export=csv" class="btn btn-success btn-sm">📥 Export Filtered CSV</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Search & Filtering Bar -->
+<div class="card" style="margin-bottom: 24px; padding: 16px 20px;">
+  <form method="GET" style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+    <!-- Global keyword search -->
+    <div style="flex: 1; min-width: 220px;">
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Global Keyword:</label>
+      <input type="text" name="q" value="{{ query }}" placeholder="Search across all fields..." class="form-control" style="padding: 7px 12px;">
+    </div>
+
+    <!-- Targeted Column Filter -->
+    <div style="min-width: 180px;">
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Target Column:</label>
+      <select name="col" class="form-control" style="padding: 7px 12px;">
+        <option value="">-- All Columns --</option>
+        {% for c in columns %}
+        <option value="{{ c }}" {% if c == filter_col %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Match Value -->
+    <div style="min-width: 180px;">
+      <label style="font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Value Contains:</label>
+      <input type="text" name="val" value="{{ filter_val }}" placeholder="Exact or substring..." class="form-control" style="padding: 7px 12px;">
+    </div>
+
+    <div style="align-self: flex-end;">
+      <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">Filter Results</button>
+      <a href="{% url 'search_filter' %}" class="btn" style="padding: 8px 14px;">Reset</a>
+    </div>
+  </form>
+</div>
+
+<!-- Results Header & Record Counts -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+  <div style="font-size: 13.5px; color: var(--text-muted);">
+    Matched <strong>{{ matched_count }}</strong> of <strong>{{ total_count }}</strong> records
+    {% if query or filter_val %}(filtered view){% endif %}
+  </div>
+</div>
+
+<!-- Filtered Table Output -->
+<div class="card">
+  {% if filtered_rows %}
+  <div class="table-responsive" style="max-height: 540px; overflow-y: auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          {% for k in filtered_rows.0.keys %}
+          <th>{{ k }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in filtered_rows %}
+        <tr>
+          {% for val in row.values %}
+          <td>{{ val|default:"-" }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+    No records match the current search filters. Try adjusting your query parameters.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

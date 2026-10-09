@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign In - AI Power BI</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body { display: grid; place-items: center; min-height: 100vh; background: #f1f5f9; }
+    .auth-box { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 32px; width: 100%; max-width: 400px; box-shadow: var(--shadow); }
+    .brand-header { text-align: center; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="auth-box">
+    <div class="brand-header">
+      <div style="font-size: 28px; margin-bottom: 8px;">◆</div>
+      <h2 style="font-size: 20px; font-weight: 800;">Sign in to AI Power BI</h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Data Cleaning & Governed MIS Engine</p>
+    </div>
+
+    {% if form.errors %}
+    <div style="padding: 10px; border-radius: 8px; background: var(--danger-light); color: var(--danger); font-size: 13px; margin-bottom: 16px;">
+      Invalid username or password. Please try again.
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" class="form-control" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; padding: 10px;">Sign In</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-muted);">
+      Don't have an account? <a href="{% url 'register' %}" style="color: var(--primary); font-weight: 600; text-decoration: none;">Create one</a>
+    </div>
+  </div>
+</body>
+</html>

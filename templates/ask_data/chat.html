@@ -1,0 +1,172 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Ask Your Data - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <h1 style="font-size: 22px; font-weight: 800;">💬 Ask Your Data</h1>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Natural language analytics grounded in real data and approved schemas. Deterministic, safe, and verifiable.
+    </p>
+  </div>
+  {% if datasets %}
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Dataset:</label>
+    <select id="chatDatasetSelect" class="form-control" style="width: auto; font-weight: 600;">
+      {% for d in datasets %}
+      <option value="{{ d.id }}" {% if active_dataset and d.id == active_dataset.id %}selected{% endif %}>{{ d.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Chat Interface Box -->
+<div class="card" style="display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 540px; padding: 0; overflow: hidden;">
+  <!-- Chat History Area -->
+  <div id="chatHistory" style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+    <!-- Welcome Bot Message -->
+    <div style="display: flex; gap: 12px; max-width: 85%;">
+      <div style="width: 34px; height: 34px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 800; flex-shrink: 0;">AI</div>
+      <div>
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; font-size: 13.5px; line-height: 1.5;">
+          <b>Hello! I can answer analytical questions about your uploaded data.</b><br>
+          Try asking one of the examples below or type your own question:
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+            <button class="btn btn-sm" onclick="askQuestion(this.textContent)">What is the total amount?</button>
+            <button class="btn btn-sm" onclick="askQuestion(this.textContent)">Top 5 categories by sales</button>
+            <button class="btn btn-sm" onclick="askQuestion(this.textContent)">What is the average value by status?</button>
+            <button class="btn btn-sm" onclick="askQuestion(this.textContent)">Count records grouped by category</button>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-left: 4px;">Governed Analytics Engine · Zero Halucinations</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Input Footer -->
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border); background: var(--card-bg);">
+    <form id="chatForm" onsubmit="event.preventDefault(); submitChat();" style="display: flex; gap: 10px;">
+      <input type="text" id="chatInput" class="form-control" placeholder="Ask a question about your data (e.g. 'Show total revenue by region')..." autocomplete="off">
+      <button type="submit" id="chatSendBtn" class="btn btn-primary" style="padding: 0 20px;">Ask Data →</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let currentSessionId = null;
+
+  function askQuestion(q) {
+    document.getElementById('chatInput').value = q;
+    submitChat();
+  }
+
+  function submitChat() {
+    const input = document.getElementById('chatInput');
+    const q = input.value.trim();
+    if (!q) return;
+
+    const datasetId = document.getElementById('chatDatasetSelect').value;
+    if (!datasetId) return showToast('Please select or upload a dataset first', true);
+
+    const hist = document.getElementById('chatHistory');
+    
+    // Append User Bubble
+    hist.innerHTML += `
+      <div style="display: flex; justify-content: flex-end; max-width: 85%; align-self: flex-end;">
+        <div style="background: var(--primary); color: #fff; border-radius: 12px; padding: 12px 18px; font-size: 13.5px;">
+          ${q}
+        </div>
+      </div>
+    `;
+    input.value = '';
+    hist.scrollTop = hist.scrollHeight;
+
+    // Append Loading Indicator
+    const loadId = 'load_' + Date.now();
+    hist.innerHTML += `
+      <div id="${loadId}" style="display: flex; gap: 12px; max-width: 85%;">
+        <div style="width: 34px; height: 34px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 800;">AI</div>
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; font-size: 13px; color: var(--text-muted);">
+          Compiling query plan and executing on governed dataset...
+        </div>
+      </div>
+    `;
+    hist.scrollTop = hist.scrollHeight;
+
+    apiRequest('/api/v1/ask-data/query/', 'POST', {
+      dataset_id: datasetId,
+      session_id: currentSessionId,
+      query: q
+    })
+    .then(res => {
+      document.getElementById(loadId)?.remove();
+      currentSessionId = res.session_id;
+      const run = res.query_run;
+      const resData = run.result_data;
+
+      const chartCanvasId = 'chart_' + Date.now();
+
+      let tableHtml = '';
+      if (resData.table && resData.table.rows && resData.table.rows.length > 0) {
+        tableHtml = `
+          <div class="table-responsive" style="max-height: 200px; margin-top: 10px;">
+            <table class="data-table">
+              <thead><tr>${resData.table.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+              <tbody>${resData.table.rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      let chartContainerHtml = '';
+      if (resData.chart && ['bar', 'line', 'pie'].includes(resData.chart.type)) {
+        chartContainerHtml = `
+          <div style="height: 220px; margin-top: 12px;">
+            <canvas id="${chartCanvasId}"></canvas>
+          </div>
+        `;
+      }
+
+      let caveatsHtml = '';
+      if (run.caveats && run.caveats.length > 0) {
+        caveatsHtml = `<div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Caveats: ${run.caveats.join('; ')}</div>`;
+      }
+
+      hist.innerHTML += `
+        <div style="display: flex; gap: 12px; max-width: 90%;">
+          <div style="width: 34px; height: 34px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 800; flex-shrink: 0;">AI</div>
+          <div style="flex: 1;">
+            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; font-size: 13.5px;">
+              <div style="font-size: 14.5px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                ${resData.summary}
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">
+                Engine: <code>${run.generated_query_plan.engine}</code> · Execution: <b>${run.execution_time_ms}ms</b> · Records: <b>${resData.records_analyzed}</b>
+              </div>
+              ${chartContainerHtml}
+              ${tableHtml}
+              ${caveatsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+      hist.scrollTop = hist.scrollHeight;
+
+      // Render chart if present
+      if (resData.chart && ['bar', 'line', 'pie'].includes(resData.chart.type)) {
+        setTimeout(() => {
+          renderChart(chartCanvasId, resData.chart.type, resData.chart.labels, resData.chart.values, resData.chart.measure);
+        }, 50);
+      }
+    })
+    .catch(err => {
+      document.getElementById(loadId)?.remove();
+      showToast(err.message, true);
+    });
+  }
+</script>
+{% endblock %}

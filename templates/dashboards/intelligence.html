@@ -1,0 +1,102 @@
+{% extends 'base/base.html' %}
+{% block title %}AI Intelligence & Insights — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🧠 AI Data Intelligence & Semantic Discovery</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Automated semantic role inference, confidence scoring, and grounded business pattern discoveries.</p>
+  </div>
+  {% if datasets %}
+  <div class="workspace-selector">
+    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Dataset:</label>
+    <select onchange="window.location.href='?dataset_id=' + this.value">
+      {% for ds in datasets %}
+      <option value="{{ ds.id }}" {% if ds.id == selected_dataset.id %}selected{% endif %}>{{ ds.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Automated Grounded Insights -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">💡 Grounded Automated Business Discoveries</div>
+    <span class="badge badge-success">Grounded in Verified Parquet Data</span>
+  </div>
+  {% if insights %}
+  <div class="grid-cols-2">
+    {% for ins in insights %}
+    <div style="padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <span style="font-weight: 700; font-size: 14px; color: var(--primary);">{{ ins.title }}</span>
+        <span class="badge badge-primary">Confidence: {{ ins.confidence }}</span>
+      </div>
+      <p style="font-size: 13px; color: var(--text-main); line-height: 1.5;">{{ ins.text }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+    Select a dataset with numerical or categorical columns to compute automated observations.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Inferred Semantic Roles & Empirical Confidence -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🏷️ Column Semantic Classifications & Review Confidence</div>
+    <span class="badge badge-primary">{{ columns.count }} Columns Classified</span>
+  </div>
+  {% if columns %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Column Name</th>
+          <th>Physical Data Type</th>
+          <th>Inferred Role</th>
+          <th>Confidence Band</th>
+          <th>Key / Identifier</th>
+          <th>Empirical Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in columns %}
+        <tr>
+          <td><strong>{{ c.name }}</strong></td>
+          <td><code>{{ c.data_type }}</code></td>
+          <td>
+            <span class="badge {% if c.inferred_role == 'currency' or c.inferred_role == 'measure' %}badge-success{% elif c.inferred_role == 'identifier' %}badge-primary{% elif c.inferred_role == 'date' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ c.inferred_role|upper }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if c.confidence_band == 'high' %}badge-success{% elif c.confidence_band == 'medium' %}badge-warning{% else %}badge-danger{% endif %}">
+              {{ c.confidence_score }}% ({{ c.confidence_band|upper }})
+            </span>
+          </td>
+          <td>
+            {% if c.is_primary_key %}
+            <span class="badge badge-primary">PRIMARY KEY</span>
+            {% else %}
+            <span style="color: var(--text-muted); font-size: 12px;">No</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 12px; color: var(--text-muted); max-width: 320px;">
+            {{ c.evidence|default:"Heuristic and distribution profiling matched rule criteria." }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+    No dataset columns found. Upload a dataset to begin AI understanding.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

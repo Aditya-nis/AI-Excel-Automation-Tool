@@ -1,0 +1,182 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI Power BI + MIS Engine{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <!-- Chart.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">◆</div>
+      <div>
+        <div class="brand-name">AI Power BI</div>
+        <div class="brand-sub">Data Cleaning & MIS Engine</div>
+      </div>
+    </div>
+
+    <nav class="nav-links">
+      <a href="{% url 'mis_home' %}" class="nav-item {% if request.resolver_match.url_name in 'mis_home,mis_home_alt' %}active{% endif %}">
+        <span class="nav-icon">🏠</span> MIS Home
+      </a>
+      <a href="{% url 'reports' %}" class="nav-item {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+        <span class="nav-icon">📑</span> MIS Report
+      </a>
+      <a href="{% url 'exception_center' %}" class="nav-item {% if request.resolver_match.url_name == 'exception_center' %}active{% endif %}">
+        <span class="nav-icon">🚨</span> Exception Center
+      </a>
+      <a href="{% url 'ask_ai' %}" class="nav-item {% if request.resolver_match.url_name in 'ask_ai,ask_data' %}active{% endif %}">
+        <span class="nav-icon">💬</span> Ask AI
+      </a>
+      <a href="{% url 'intelligence' %}" class="nav-item {% if request.resolver_match.url_name == 'intelligence' %}active{% endif %}">
+        <span class="nav-icon">🧠</span> Intelligence
+      </a>
+      <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+      <a href="{% url 'upload' %}" class="nav-item {% if request.resolver_match.url_name == 'upload' %}active{% endif %}">
+        <span class="nav-icon">📤</span> Upload Data
+      </a>
+      <a href="{% url 'data_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'data_overview' %}active{% endif %}">
+        <span class="nav-icon">📊</span> Data Overview
+      </a>
+      <a href="{% url 'analytics' %}" class="nav-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
+        <span class="nav-icon">📈</span> Analytics
+      </a>
+      <a href="{% url 'daily_report' %}" class="nav-item {% if request.resolver_match.url_name == 'daily_report' %}active{% endif %}">
+        <span class="nav-icon">📋</span> Daily Report
+      </a>
+      <a href="{% url 'weekly_report' %}" class="nav-item {% if request.resolver_match.url_name == 'weekly_report' %}active{% endif %}">
+        <span class="nav-icon">📅</span> Weekly Report
+      </a>
+      <a href="{% url 'monthly_report' %}" class="nav-item {% if request.resolver_match.url_name == 'monthly_report' %}active{% endif %}">
+        <span class="nav-icon">🗓️</span> Monthly Report
+      </a>
+      <a href="{% url 'yearly_report' %}" class="nav-item {% if request.resolver_match.url_name == 'yearly_report' %}active{% endif %}">
+        <span class="nav-icon">📆</span> Yearly Report
+      </a>
+      <a href="{% url 'search_filter' %}" class="nav-item {% if request.resolver_match.url_name == 'search_filter' %}active{% endif %}">
+        <span class="nav-icon">🔎</span> Search & Filter
+      </a>
+      <a href="{% url 'pivot_table' %}" class="nav-item {% if request.resolver_match.url_name == 'pivot_table' %}active{% endif %}">
+        <span class="nav-icon">🗂️</span> Pivot Table
+      </a>
+      <a href="{% url 'data_quality_center' %}" class="nav-item {% if request.resolver_match.url_name in 'data_quality_center,data_quality' %}active{% endif %}">
+        <span class="nav-icon">⚠️</span> Data Quality
+      </a>
+      <a href="{% url 'report_history' %}" class="nav-item {% if request.resolver_match.url_name == 'report_history' %}active{% endif %}">
+        <span class="nav-icon">📑</span> Report History
+      </a>
+      <a href="{% url 'automation_log' %}" class="nav-item {% if request.resolver_match.url_name in 'automation_log,jobs' %}active{% endif %}">
+        <span class="nav-icon">📰</span> Automation Log
+      </a>
+      <a href="{% url 'export_hub' %}" class="nav-item {% if request.resolver_match.url_name == 'export_hub' %}active{% endif %}">
+        <span class="nav-icon">📁</span> Export
+      </a>
+      <a href="{% url 'settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+        <span class="nav-icon">⚙️</span> Settings
+      </a>
+      <a href="{% url 'help' %}" class="nav-item {% if request.resolver_match.url_name == 'help' %}active{% endif %}">
+        <span class="nav-icon">❓</span> Help
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="user-avatar">{{ request.user.username|make_list|first|upper }}</div>
+          <div>
+            <div style="font-weight: 600;">{{ request.user.username }}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">{{ current_workspace.name|truncatechars:18 }}</div>
+          </div>
+        </div>
+        <a href="{% url 'password_change' %}" style="color: var(--text-muted); text-decoration: none; font-size: 14px;" title="Change Password">🔑</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrap -->
+  <div id="app-wrap">
+    <header class="topbar">
+      <div class="topbar-left">
+        <!-- Workspace Switcher -->
+        <div class="workspace-selector">
+          <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Workspace:</label>
+          <select onchange="switchWorkspace(this.value)">
+            {% for ws in user_workspaces %}
+              <option value="{{ ws.id }}" {% if ws.id == current_workspace.id %}selected{% endif %}>{{ ws.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <!-- Theme Toggle -->
+        <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          🌙
+        </button>
+
+        <!-- Notifications Bell -->
+        <a href="{% url 'notifications' %}" class="icon-badge-btn" title="Notifications">
+          🔔
+          <span id="notif-badge" class="badge-count" style="display: none;">0</span>
+        </a>
+
+        <!-- Upload Action -->
+        <a href="{% url 'upload' %}" class="btn btn-primary btn-sm">📤 Upload New Data</a>
+
+        <!-- User Dropdown Menu -->
+        <div class="user-menu-container">
+          <button class="user-menu-btn" onclick="toggleUserMenu(event)">
+            <span class="user-avatar" style="width: 22px; height: 22px; font-size: 11px;">{{ request.user.username|make_list|first|upper }}</span>
+            <span>{{ request.user.username }}</span>
+            <span style="font-size: 10px; color: var(--text-muted);">▼</span>
+          </button>
+          <div id="user-dropdown-menu" class="dropdown-menu">
+            <div style="padding: 8px 16px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+              Signed in as <strong>{{ request.user.username }}</strong>
+            </div>
+            <a href="{% url 'password_change' %}" class="dropdown-item">
+              <span>🔑</span> Change Password
+            </a>
+            <a href="{% url 'approvals' %}" class="dropdown-item">
+              <span>🛡️</span> Approval Queue
+            </a>
+            <a href="{% url 'settings' %}" class="dropdown-item">
+              <span>⚙️</span> Workspace Settings
+            </a>
+            <div class="dropdown-divider"></div>
+            <a href="{% url 'logout' %}" class="dropdown-item" style="color: var(--danger);">
+              <span>🚪</span> Log Out
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div style="padding: 10px 24px 0;">
+      {% for message in messages %}
+      <div style="padding: 8px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; {% if message.tags == 'error' %}background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger);{% else %}background: var(--success-light); color: var(--success); border: 1px solid var(--success);{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <main class="content-area">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

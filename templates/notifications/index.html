@@ -1,0 +1,69 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Notifications - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🔔 In-App Notifications & Alerts</h1>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Operational and governance alerts for workflow completions, schema drift detections, and report publications.
+    </p>
+  </div>
+  <button class="btn btn-sm" onclick="markAllNotificationsRead()">✓ Mark All as Read</button>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📫 Notification Inbox</div>
+    <span class="badge badge-primary">{{ notifications.count }} Messages</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    {% for n in notifications %}
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 18px; border-radius: 8px; border: 1px solid var(--border); background: {% if not n.is_read %}var(--primary-light){% else %}var(--card-bg){% endif %};">
+      <div style="display: flex; gap: 12px; align-items: flex-start;">
+        <span style="font-size: 20px; margin-top: 2px;">
+          {% if n.level == 'critical' %}🚨{% elif n.level == 'warning' %}⚠️{% elif n.level == 'success' %}✅{% else %}ℹ️{% endif %}
+        </span>
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <b style="font-size: 14px;">{{ n.title }}</b>
+            <span class="badge {% if n.level == 'critical' %}badge-danger{% elif n.level == 'warning' %}badge-warning{% elif n.level == 'success' %}badge-success{% else %}badge-neutral{% endif %}">
+              {{ n.level|upper }}
+            </span>
+            {% if not n.is_read %}
+            <span class="badge badge-primary">NEW</span>
+            {% endif %}
+          </div>
+          <p style="font-size: 13px; color: var(--text-main); margin-top: 4px;">{{ n.message }}</p>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+            {{ n.created_at|date:"Y-m-d H:i:s" }}
+            {% if n.link_url %}
+            · <a href="{{ n.link_url }}" style="color: var(--primary); font-weight: 600; text-decoration: none;">View Resource →</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; color: var(--text-muted); padding: 30px;">
+      🎉 All caught up! No notifications in your inbox.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function markAllNotificationsRead() {
+    apiRequest('/api/v1/notifications/mark_all_read/', 'POST')
+      .then(() => {
+        showToast('All notifications marked as read ✓');
+        setTimeout(() => location.reload(), 600);
+      })
+      .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

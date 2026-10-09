@@ -1,0 +1,113 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Approvals Queue - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">⚖️ Governance & Approval Queue</h1>
+  <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+    Review and authorize high-impact operations including schema changes, report publication, and workflow deployments.
+  </p>
+</div>
+
+<!-- Pending Approvals -->
+<div class="card" style="border-left: 4px solid var(--warning);">
+  <div class="card-header">
+    <div class="card-title">⏳ Pending Authorizations</div>
+    <span class="badge badge-warning">{{ pending_approvals.count }} Pending</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    {% for app in pending_approvals %}
+    <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--warning-light);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <b style="font-size: 15px;">{{ app.title }}</b>
+            <span class="badge badge-primary">{{ app.get_request_type_display }}</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-main); margin-top: 6px;">{{ app.description }}</p>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
+            Requested by: <b>{{ app.requester.username }}</b> on {{ app.created_at|date:"Y-m-d H:i" }}
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-success" onclick="decideApproval({{ app.id }}, 'approved')">✓ Authorize</button>
+          <button class="btn btn-sm btn-danger" onclick="decideApproval({{ app.id }}, 'rejected')">✕ Reject</button>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+      ✓ No pending approval requests in this workspace.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Historical Approvals Log -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📜 Approval Decisions History</div>
+    <span class="badge badge-neutral">{{ history_approvals.count }} Reviewed</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Request</th>
+          <th>Type</th>
+          <th>Requester</th>
+          <th>Status</th>
+          <th>Reviewed By</th>
+          <th>Decision Date</th>
+          <th>Reviewer Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in history_approvals %}
+        <tr>
+          <td><b>{{ h.title }}</b></td>
+          <td><span class="badge badge-neutral">{{ h.get_request_type_display }}</span></td>
+          <td>{{ h.requester.username }}</td>
+          <td>
+            <span class="badge {% if h.status == 'approved' %}badge-success{% else %}badge-danger{% endif %}">
+              {{ h.status|upper }}
+            </span>
+          </td>
+          <td><b>{{ h.reviewed_by.username|default:"System" }}</b></td>
+          <td>{{ h.reviewed_at|date:"Y-m-d H:i" }}</td>
+          <td style="font-size: 12px; color: var(--text-muted);">{{ h.review_comments|default:"None" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">
+            No historical decisions found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function decideApproval(appId, decision) {
+    const comments = prompt(`Enter comments for ${decision} decision (optional):`) || '';
+    apiRequest('/api/v1/approvals/decide/', 'POST', {
+      approval_id: appId,
+      action: decision,
+      comments: comments
+    })
+    .then(() => {
+      showToast(`Request ${decision} successfully ✓`);
+      setTimeout(() => location.reload(), 700);
+    })
+    .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

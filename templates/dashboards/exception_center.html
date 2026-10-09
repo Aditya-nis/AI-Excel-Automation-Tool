@@ -1,0 +1,164 @@
+{% extends 'base/base.html' %}
+{% block title %}Exception Center — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🚨 Exception Center</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Unified cockpit for data anomalies, quality discrepancies, and reconciliation breaks.</p>
+  </div>
+  <div style="display: flex; gap: 10px;">
+    <a href="{% url 'anomalies' %}" class="btn">Scan Statistical Anomalies</a>
+    <a href="{% url 'consolidation' %}" class="btn">Reconciliation Runs</a>
+  </div>
+</div>
+
+<!-- Status Counters -->
+<div class="grid-cols-3" style="margin-bottom: 24px;">
+  <div class="kpi-card" style="border-left: 3px solid var(--danger);">
+    <div class="kpi-label">Critical Exceptions</div>
+    <div class="kpi-value" style="color: var(--danger);">{{ critical_count }}</div>
+    <div class="kpi-sub">Severe outlier spikes / null violations</div>
+  </div>
+  <div class="kpi-card" style="border-left: 3px solid var(--warning);">
+    <div class="kpi-label">Warning Items</div>
+    <div class="kpi-value" style="color: var(--warning);">{{ warning_count }}</div>
+    <div class="kpi-sub">Noticeable variances under review</div>
+  </div>
+  <div class="kpi-card" style="border-left: 3px solid var(--success);">
+    <div class="kpi-label">Resolved / Handled</div>
+    <div class="kpi-value" style="color: var(--success);">{{ resolved_count }}</div>
+    <div class="kpi-sub">Acknowledged & audited</div>
+  </div>
+</div>
+
+<!-- Statistical Anomalies & Outliers -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📈 Statistical Metric Anomalies & Spikes</div>
+    <span class="badge badge-primary">{{ anomalies.count }} Total</span>
+  </div>
+  {% if anomalies %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Metric & Dataset</th>
+          <th>Observed vs Baseline</th>
+          <th>Deviation</th>
+          <th>Severity</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in anomalies %}
+        <tr>
+          <td>
+            <div style="font-weight: 600;">{{ a.metric_name }}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">{{ a.dataset.name }} • {{ a.period_label }}</div>
+          </td>
+          <td>
+            <strong>{{ a.observed_value }}</strong> <span style="color: var(--text-muted); font-size: 11px;">(avg: {{ a.baseline_value }})</span>
+          </td>
+          <td>
+            <span style="font-weight: 700; color: {% if a.deviation_percent > 0 %}var(--danger){% else %}var(--info){% endif %};">
+              {% if a.deviation_percent > 0 %}+{% endif %}{{ a.deviation_percent }}%
+            </span>
+            <div style="font-size: 10.5px; color: var(--text-muted);">Z-Score: {{ a.z_score }}</div>
+          </td>
+          <td>
+            <span class="badge {% if a.severity == 'critical' %}badge-danger{% elif a.severity == 'warning' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ a.severity|upper }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if a.review_status == 'resolved' %}badge-success{% elif a.review_status == 'acknowledged' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ a.review_status|upper }}
+            </span>
+          </td>
+          <td>
+            <form method="POST" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="action_type" value="update_anomaly">
+              <input type="hidden" name="item_id" value="{{ a.id }}">
+              {% if a.review_status != 'resolved' %}
+              <input type="hidden" name="new_status" value="resolved">
+              <button type="submit" class="btn btn-sm btn-success">Resolve</button>
+              {% else %}
+              <input type="hidden" name="new_status" value="open">
+              <button type="submit" class="btn btn-sm">Re-open</button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+    No statistical anomalies detected. Run an anomaly scan from the Anomalies tab.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Data Quality Discrepancies -->
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <div class="card-title">🛡️ Data Quality Discrepancies & Column Violations</div>
+    <span class="badge badge-warning">{{ quality_issues.count }} Total</span>
+  </div>
+  {% if quality_issues %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Issue Type</th>
+          <th>Column</th>
+          <th>Description</th>
+          <th>Severity</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for qi in quality_issues %}
+        <tr>
+          <td style="font-weight: 600;">{{ qi.get_issue_type_display|default:qi.issue_type }}</td>
+          <td><code>{{ qi.column_name|default:"Whole Dataset" }}</code></td>
+          <td>{{ qi.description }}</td>
+          <td>
+            <span class="badge {% if qi.severity == 'critical' %}badge-danger{% elif qi.severity == 'warning' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ qi.severity|upper }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if qi.is_resolved %}badge-success{% else %}badge-danger{% endif %}">
+              {% if qi.is_resolved %}RESOLVED{% else %}OPEN{% endif %}
+            </span>
+          </td>
+          <td>
+            {% if not qi.is_resolved %}
+            <form method="POST" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="action_type" value="resolve_quality">
+              <input type="hidden" name="item_id" value="{{ qi.id }}">
+              <button type="submit" class="btn btn-sm btn-success">Mark Resolved</button>
+            </form>
+            {% else %}
+            <span style="font-size: 12px; color: var(--success);">✓ Resolved</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+    No data quality issues flagged. Your datasets meet validation thresholds!
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,285 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Multi-File Consolidation & Reconciliation{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <h1 style="font-size: 22px; font-weight: 800;">Multi-File Consolidation & Reconciliation</h1>
+  <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+    Append/union schemas, merge tables with cardinality safeguards, and verify control totals.
+  </p>
+</div>
+
+<!-- Consolidation Tool Card -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🔄 Table Consolidation Studio</div>
+    <span class="badge badge-primary">Append / Join</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+    <div class="form-group">
+      <label class="form-label">Primary Dataset:</label>
+      <select id="pDatasetSelect" class="form-control" onchange="loadDatasetColumns(this.value, 'pKeySelect')">
+        <option value="">Select Primary...</option>
+        {% for d in datasets %}
+        <option value="{{ d.id }}">{{ d.name }} ({{ d.active_version.row_count }} rows)</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Secondary Dataset:</label>
+      <select id="sDatasetSelect" class="form-control" onchange="loadDatasetColumns(this.value, 'sKeySelect')">
+        <option value="">Select Secondary...</option>
+        {% for d in datasets %}
+        <option value="{{ d.id }}">{{ d.name }} ({{ d.active_version.row_count }} rows)</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Operation Type:</label>
+      <select id="opSelect" class="form-control" onchange="toggleJoinFields(this.value)">
+        <option value="join">Join / Merge Tables</option>
+        <option value="append">Append / Union Tables</option>
+      </select>
+    </div>
+
+    <div class="form-group join-field">
+      <label class="form-label">Join Type:</label>
+      <select id="joinTypeSelect" class="form-control">
+        <option value="left">Left Outer Join</option>
+        <option value="inner">Inner Join</option>
+        <option value="right">Right Outer Join</option>
+        <option value="outer">Full Outer Join</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid-cols-2 join-field" style="margin-top: 10px;">
+    <div class="form-group">
+      <label class="form-label">Primary Key Column:</label>
+      <select id="pKeySelect" class="form-control"><option value="">Select column...</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Secondary Key Column:</label>
+      <select id="sKeySelect" class="form-control"><option value="">Select column...</option></select>
+    </div>
+  </div>
+
+  <!-- Cardinality Warning Box -->
+  <div id="cardinalityNotice" style="display: none; padding: 12px 16px; border-radius: 8px; margin-top: 12px; font-size: 13px;"></div>
+
+  <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px;">
+    <button class="btn join-field" onclick="checkCardinality()">🔍 Preview Join Cardinality</button>
+    <button class="btn btn-primary" onclick="runConsolidation()">⚡ Execute Consolidation</button>
+  </div>
+</div>
+
+<!-- Reconciliation Tool Card -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">⚖️ Financial & Control-Total Reconciliation</div>
+    <span class="badge badge-neutral">Exact Decimal Precision</span>
+  </div>
+
+  <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px;">
+    Reconciles two datasets matching on key identifiers and calculates variances across monetary and quantity control totals.
+  </p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+    <div class="form-group">
+      <label class="form-label">Dataset A Metric Column:</label>
+      <input type="text" id="reconCol1" class="form-control" placeholder="e.g. amount or total">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dataset B Metric Column:</label>
+      <input type="text" id="reconCol2" class="form-control" placeholder="e.g. invoice_value">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Allowed Variance Tolerance:</label>
+      <input type="number" id="reconTol" class="form-control" value="0.00" step="0.01">
+    </div>
+  </div>
+
+  <div id="reconResultBox" style="display: none; padding: 14px; border-radius: 8px; margin-top: 14px; font-size: 13px;"></div>
+
+  <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+    <button class="btn btn-primary" onclick="runReconciliation()">⚖️ Run Reconciliation Check</button>
+  </div>
+</div>
+
+<!-- Prior Consolidation Runs -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📜 Consolidation & Reconciliation Runs</div>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Operation</th>
+          <th>Primary Table</th>
+          <th>Secondary Table</th>
+          <th>Resulting Records</th>
+          <th>Status / Variance</th>
+          <th>Created At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td><span class="badge badge-primary">{{ r.operation_type|upper }}</span></td>
+          <td><b>{{ r.primary_dataset.name }}</b></td>
+          <td><b>{{ r.secondary_dataset.name }}</b></td>
+          <td>{{ r.records_produced }}</td>
+          <td><span class="badge badge-success">{{ r.status }}</span></td>
+          <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% endfor %}
+        {% for rec in reconciliations %}
+        <tr>
+          <td><span class="badge badge-warning">RECONCILIATION</span></td>
+          <td><b>{{ rec.primary_dataset.name }}</b></td>
+          <td><b>{{ rec.secondary_dataset.name }}</b></td>
+          <td>Matched: {{ rec.matched_records_count }}</td>
+          <td>
+            <span class="badge {% if rec.is_reconciled %}badge-success{% else %}badge-danger{% endif %}">
+              Variance: ₹{{ rec.variance }} ({% if rec.is_reconciled %}RECONCILED{% else %}UNRESOLVED{% endif %})
+            </span>
+          </td>
+          <td>{{ rec.created_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% endfor %}
+        {% if not runs and not reconciliations %}
+        <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No consolidation operations executed yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function toggleJoinFields(val) {
+    document.querySelectorAll('.join-field').forEach(el => {
+      el.style.display = val === 'append' ? 'none' : '';
+    });
+  }
+
+  function loadDatasetColumns(dId, targetSelectId) {
+    if (!dId) return;
+    apiRequest(`/api/v1/datasets/${dId}/preview/?page_size=1`)
+      .then(data => {
+        const sel = document.getElementById(targetSelectId);
+        sel.innerHTML = '<option value="">Select column...</option>';
+        data.columns.forEach(c => {
+          sel.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+        });
+      })
+      .catch(err => showToast(err.message, true));
+  }
+
+  function checkCardinality() {
+    const pId = document.getElementById('pDatasetSelect').value;
+    const sId = document.getElementById('sDatasetSelect').value;
+    const pk = document.getElementById('pKeySelect').value;
+    const sk = document.getElementById('sKeySelect').value;
+
+    if (!pId || !sId || !pk || !sk) {
+      return showToast('Select both datasets and keys to test cardinality', true);
+    }
+
+    apiRequest('/api/v1/consolidation/preview_cardinality/', 'POST', {
+      primary_dataset_id: pId,
+      secondary_dataset_id: sId,
+      primary_key: pk,
+      secondary_key: sk
+    })
+    .then(card => {
+      const box = document.getElementById('cardinalityNotice');
+      box.style.display = 'block';
+      const isDangerous = card.cardinality === 'N:N';
+      box.style.background = isDangerous ? 'var(--danger-light)' : 'var(--success-light)';
+      box.style.color = isDangerous ? 'var(--danger)' : 'var(--text-main)';
+      box.style.border = `1px solid ${isDangerous ? 'var(--danger)' : 'var(--success)'}`;
+
+      box.innerHTML = `
+        <b>Relationship: ${card.cardinality}</b> (${card.warning})<br>
+        Matched Keys: <b>${card.matched_keys_count}</b> | Unmatched Primary: <b>${card.unmatched_primary_keys}</b> | Unmatched Secondary: <b>${card.unmatched_secondary_keys}</b><br>
+        Estimated Output Records: <b>${card.estimated_output_rows}</b>
+      `;
+    })
+    .catch(err => showToast(err.message, true));
+  }
+
+  function runConsolidation() {
+    const pId = document.getElementById('pDatasetSelect').value;
+    const sId = document.getElementById('sDatasetSelect').value;
+    const op = document.getElementById('opSelect').value;
+    const pk = document.getElementById('pKeySelect').value;
+    const sk = document.getElementById('sKeySelect').value;
+    const jt = document.getElementById('joinTypeSelect').value;
+
+    if (!pId || !sId) return showToast('Select primary and secondary datasets', true);
+    if (op === 'join' && (!pk || !sk)) return showToast('Select join keys for both tables', true);
+
+    apiRequest('/api/v1/consolidation/execute/', 'POST', {
+      operation_type: op,
+      primary_dataset_id: pId,
+      secondary_dataset_id: sId,
+      params: {
+        primary_key: pk,
+        secondary_key: sk,
+        join_type: jt
+      }
+    })
+    .then(res => {
+      showToast(`Consolidation complete ✓ Created dataset '${res.name}'`);
+      setTimeout(() => location.reload(), 900);
+    })
+    .catch(err => showToast(err.message, true));
+  }
+
+  function runReconciliation() {
+    const pId = document.getElementById('pDatasetSelect').value;
+    const sId = document.getElementById('sDatasetSelect').value;
+    const pk = document.getElementById('pKeySelect').value;
+    const sk = document.getElementById('sKeySelect').value;
+    const c1 = document.getElementById('reconCol1').value;
+    const c2 = document.getElementById('reconCol2').value;
+    const tol = document.getElementById('reconTol').value;
+
+    if (!pId || !sId || !pk || !sk) {
+      return showToast('Select datasets and matching keys above', true);
+    }
+
+    apiRequest('/api/v1/consolidation/reconcile/', 'POST', {
+      primary_dataset_id: pId,
+      secondary_dataset_id: sId,
+      primary_key: pk,
+      secondary_key: sk,
+      control_total_field_1: c1,
+      control_total_field_2: c2,
+      tolerance: tol
+    })
+    .then(res => {
+      const box = document.getElementById('reconResultBox');
+      box.style.display = 'block';
+      box.style.background = res.is_reconciled ? 'var(--success-light)' : 'var(--danger-light)';
+      box.style.color = res.is_reconciled ? 'var(--success)' : 'var(--danger)';
+      box.style.border = `1px solid ${res.is_reconciled ? 'var(--success)' : 'var(--danger)'}`;
+
+      box.innerHTML = `
+        <b>${res.is_reconciled ? '✓ RECONCILIATION PASSED' : '⚠️ RECONCILIATION VARIANCE DETECTED'}</b><br>
+        Control Total 1: ₹${res.control_total_sum_1} | Control Total 2: ₹${res.control_total_sum_2}<br>
+        Variance: <b>₹${res.variance}</b> (Tolerance: ₹${res.tolerance})<br>
+        Matched Records: ${res.matched_records_count} | Unmatched in A: ${res.unmatched_primary_count} | Unmatched in B: ${res.unmatched_secondary_count}
+      `;
+    })
+    .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Job Monitor - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <h1 style="font-size: 22px; font-weight: 800;">⏱️ Background Job Monitor & Run Logs</h1>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Track scheduled job executions, schema-drift events, and automation runtime logs.
+    </p>
+  </div>
+  <a href="{% url 'automation' %}" class="btn btn-sm">← Back to Workflows</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📜 Execution Run History</div>
+    <span class="badge badge-primary">{{ jobs.count }} Executions</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Job ID</th>
+          <th>Workflow</th>
+          <th>Trigger</th>
+          <th>Status</th>
+          <th>Duration</th>
+          <th>Started At</th>
+          <th>Output Version</th>
+          <th>Execution Logs & Drift Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr>
+          <td>#{{ j.id }}</td>
+          <td><b>{{ j.workflow.name }}</b></td>
+          <td><span class="badge badge-neutral">{{ j.trigger_type|upper }}</span></td>
+          <td>
+            <span class="badge {% if j.status == 'completed' %}badge-success{% elif j.status == 'drift_detected' %}badge-warning{% else %}badge-danger{% endif %}">
+              {{ j.get_status_display }}
+            </span>
+          </td>
+          <td>{{ j.duration_seconds }}s</td>
+          <td>{{ j.started_at|date:"Y-m-d H:i:s" }}</td>
+          <td>{% if j.output_version %}v{{ j.output_version.version_number }}{% else %}-{% endif %}</td>
+          <td style="max-width: 340px; white-space: normal; font-size: 12px; font-family: monospace;">
+            {{ j.execution_logs }}
+            {% if j.schema_drift_detected %}
+            <div style="color: var(--danger); font-weight: 600; margin-top: 4px;">
+              Drift Details: {{ j.drift_details }}
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No background jobs executed yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

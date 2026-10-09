@@ -1,0 +1,134 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Data Quality Center - {{ dataset.name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="font-size: 22px; font-weight: 800;">Data Quality Center</h1>
+      <span class="badge badge-primary">v{{ version.version_number }}</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Transparent data quality scoring, multi-dimension integrity audits, and one-click remediation.
+    </p>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <a href="{% url 'transformations' dataset.id %}" class="btn btn-sm">📜 Transformation History & Undo</a>
+    <a href="{% url 'dataset_detail' dataset.id %}" class="btn btn-sm">← Dataset</a>
+  </div>
+</div>
+
+<!-- Score and Components Card -->
+<div class="card">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;">
+    <div style="display: flex; align-items: center; gap: 24px;">
+      <!-- Circle Gauge -->
+      <div class="score-circle" style="--score: {{ report.overall_score|default:100 }};">
+        <div class="score-inner">
+          {{ report.overall_score|default:100 }}%
+        </div>
+      </div>
+      <div>
+        <h2 style="font-size: 18px; font-weight: 800;">Overall Data Health Score</h2>
+        <p style="font-size: 12.5px; color: var(--text-muted); max-width: 380px; margin-top: 4px;">
+          Formula: <code>{{ report.scoring_formula }}</code>
+        </p>
+        <div style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+          Total Detected Issues: <b style="color: var(--danger);">{{ issues.count }}</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- Component Breakdown Grid -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; flex: 1; max-width: 480px;">
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Completeness</div>
+        <div style="font-size: 18px; font-weight: 800; color: var(--text-main);">{{ report.completeness_score|default:100 }}%</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Non-null & populated cells</div>
+      </div>
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Uniqueness</div>
+        <div style="font-size: 18px; font-weight: 800; color: var(--text-main);">{{ report.uniqueness_score|default:100 }}%</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Absence of redundant rows</div>
+      </div>
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Validity</div>
+        <div style="font-size: 18px; font-weight: 800; color: var(--text-main);">{{ report.validity_score|default:100 }}%</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Conforms to data types</div>
+      </div>
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Consistency</div>
+        <div style="font-size: 18px; font-weight: 800; color: var(--text-main);">{{ report.consistency_score|default:100 }}%</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Uniform casing & formatting</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detected Issues List -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">⚠️ Detected Quality Issues & Remediation</div>
+    <span class="badge badge-neutral">{{ issues.count }} Issues</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    {% for issue in issues %}
+    <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: {% if issue.severity == 'critical' %}var(--danger-light){% elif issue.severity == 'warning' %}var(--warning-light){% else %}var(--card-bg){% endif %};">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <b style="font-size: 14px;">{{ issue.get_issue_type_display }}</b>
+            <span class="badge {% if issue.severity == 'critical' %}badge-danger{% elif issue.severity == 'warning' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ issue.severity|upper }}
+            </span>
+            {% if issue.column_name %}
+            <span class="badge badge-primary">Column: {{ issue.column_name }}</span>
+            {% endif %}
+          </div>
+          <p style="font-size: 13px; color: var(--text-main); margin-top: 6px;">
+            {{ issue.evidence_summary }}
+          </p>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
+            Affected rows: <b>{{ issue.affected_row_count }}</b>
+            {% if issue.sample_row_indices %}
+            · Sample row indices: <code>{{ issue.sample_row_indices|slice:":5"|join:", " }}</code>
+            {% endif %}
+          </div>
+        </div>
+
+        <div>
+          {% if not issue.is_resolved %}
+          <button class="btn btn-sm btn-primary" onclick="applyQuickFix({{ issue.id }}, '{{ issue.suggested_action }}')">
+            ⚡ Quick Fix ({{ issue.suggested_action|title }})
+          </button>
+          {% else %}
+          <span class="badge badge-success">✓ Resolved</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; color: var(--text-muted); padding: 30px;">
+      🎉 Perfect score! No quality defects or anomalies detected in active dataset.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function applyQuickFix(issueId, action) {
+    if (!confirm(`Apply automated transformation '${action}'? A new version will be created with reversible undo capability.`)) return;
+
+    apiRequest('/api/v1/quality/quick_fix/', 'POST', { issue_id: issueId })
+      .then(res => {
+        showToast(`Fix applied ✓ Created v${res.new_version} with quality score ${res.quality_score}%`);
+        setTimeout(() => location.reload(), 800);
+      })
+      .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

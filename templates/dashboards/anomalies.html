@@ -1,0 +1,141 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Anomaly Detection & Forecasting - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🚨 Business Anomaly Detection & Forecasting</h1>
+      <span class="badge badge-warning">Empirical Audits</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Data-grounded 3-sigma statistical outlier detection, period-over-period deviation tracking, and trend forecasting.
+    </p>
+  </div>
+  {% if datasets %}
+  <div style="display: flex; gap: 8px;">
+    <button class="btn btn-primary btn-sm" onclick="runAnomalyScan()">🔍 Scan Active Dataset for Anomalies</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Honest AI & Forecasting Notice -->
+<div style="background: var(--warning-light); border-left: 4px solid var(--warning); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #78350f;">
+  <b>Analytical Grounding:</b> Anomalies identify mathematical and statistical deviations (Z-score &gt; 2.5, extreme spikes, or sudden volume drop-offs). Forecasts are labeled explicitly as estimates with empirical error intervals (MAE), not guarantees.
+</div>
+
+<!-- Detected Anomalies Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">⚠️ Detected Statistical Anomalies & Outliers</div>
+    <span class="badge badge-neutral">{{ anomalies.count }} Detected</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Dataset</th>
+          <th>Metric Name</th>
+          <th>Observed Value</th>
+          <th>Baseline Mean</th>
+          <th>Deviation %</th>
+          <th>Z-Score</th>
+          <th>Evidence & Reasoning</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in anomalies %}
+        <tr>
+          <td>
+            <span class="badge {% if a.severity == 'critical' %}badge-danger{% elif a.severity == 'warning' %}badge-warning{% else %}badge-neutral{% endif %}">
+              {{ a.severity|upper }}
+            </span>
+          </td>
+          <td><b>{{ a.dataset.name }}</b></td>
+          <td><code>{{ a.metric_name }}</code></td>
+          <td><b style="color: var(--danger);">{{ a.observed_value }}</b></td>
+          <td>{{ a.baseline_value }}</td>
+          <td><b>{{ a.deviation_percent }}%</b></td>
+          <td>{{ a.z_score }}</td>
+          <td style="max-width: 320px; white-space: normal; font-size: 12px;">{{ a.evidence }}</td>
+          <td>
+            <span class="badge badge-primary">{{ a.get_review_status_display }}</span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No statistical anomalies currently flagged. Click "Scan Active Dataset" to run a scan.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Empirical Forecast Models -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📈 Metric Trend Projections & Forecasts</div>
+    <span class="badge badge-primary">{{ forecasts.count }} Forecasts</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Dataset</th>
+          <th>Metric</th>
+          <th>Method</th>
+          <th>Historical Datapoints</th>
+          <th>Mean Absolute Error (MAE)</th>
+          <th>Future Projections (Estimate ± Uncertainty)</th>
+          <th>Generated At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in forecasts %}
+        <tr>
+          <td><b>{{ f.dataset.name }}</b></td>
+          <td><code>{{ f.metric_name }}</code></td>
+          <td>{{ f.method }}</td>
+          <td>{{ f.historical_points }} points</td>
+          <td>{{ f.mae_error|default:"0.00" }}</td>
+          <td style="font-size: 12px;">
+            {% for p in f.forecast_results %}
+              <div>{{ p.period }}: <b>₹{{ p.estimate }}</b> <span style="color: var(--text-muted);">(Interval: ₹{{ p.lower_bound }} - ₹{{ p.upper_bound }})</span></div>
+            {% endfor %}
+          </td>
+          <td>{{ f.created_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No forecasts computed yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function runAnomalyScan() {
+    showToast('Executing statistical anomaly audit across all measures...');
+    apiRequest('/api/v1/anomalies/scan/', 'POST')
+      .then(res => {
+        showToast(`Scan complete ✓ Found ${res.count} anomalies.`);
+        setTimeout(() => location.reload(), 800);
+      })
+      .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

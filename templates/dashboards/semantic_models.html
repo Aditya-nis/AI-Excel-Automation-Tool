@@ -1,0 +1,124 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Governed Semantic Layer & KPIs{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <h1 style="font-size: 22px; font-weight: 800;">Governed Semantic Layer & Business KPIs</h1>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      Define standardized business metrics, certified dimensions, and calculation definitions.
+    </p>
+  </div>
+  {% if datasets %}
+  <div style="display: flex; gap: 8px;">
+    <select id="autoGenDatasetId" class="form-control" style="width: auto;">
+      {% for d in datasets %}
+      <option value="{{ d.id }}">{{ d.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm" onclick="autoGenSemanticModel()">✨ Auto-Generate Governed Model</button>
+  </div>
+  {% endif %}
+</div>
+
+{% for m in models %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📐 {{ m.name }}</div>
+      <div class="card-subtitle">Source: {{ m.primary_dataset.name }} · {{ m.measures.count }} Measures · {{ m.dimensions.count }} Dimensions</div>
+    </div>
+    <span class="badge {% if m.is_default %}badge-success{% else %}badge-neutral{% endif %}">
+      {% if m.is_default %}CERTIFIED DEFAULT{% else %}CUSTOM{% endif %}
+    </span>
+  </div>
+
+  <!-- Measures Catalog -->
+  <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; color: var(--text-muted);">Certified Measures & KPIs</h4>
+  <div class="table-responsive" style="margin-bottom: 20px;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Measure Name</th>
+          <th>Display Label</th>
+          <th>Source Column</th>
+          <th>Aggregation</th>
+          <th>Format</th>
+          <th>KPI Card</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for meas in m.measures.all %}
+        <tr>
+          <td><b>{{ meas.name }}</b></td>
+          <td>{{ meas.display_label }}</td>
+          <td><code>{{ meas.column_name }}</code></td>
+          <td><span class="badge badge-primary">{{ meas.aggregation_type|upper }}</span></td>
+          <td>{{ meas.format_type|title }}</td>
+          <td>{% if meas.is_kpi %}<span class="badge badge-success">✓ KPI Metric</span>{% else %}-{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 12px;">No measures defined yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Dimensions Catalog -->
+  <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; color: var(--text-muted);">Dimensions & Categorical Slices</h4>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Dimension Name</th>
+          <th>Display Label</th>
+          <th>Source Column</th>
+          <th>Dimension Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dim in m.dimensions.all %}
+        <tr>
+          <td><b>{{ dim.name }}</b></td>
+          <td>{{ dim.display_label }}</td>
+          <td><code>{{ dim.column_name }}</code></td>
+          <td><span class="badge badge-neutral">{{ dim.get_dimension_type_display }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 12px;">No dimensions defined yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% empty %}
+<div class="card" style="text-align: center; padding: 50px 20px;">
+  <div style="font-size: 36px; margin-bottom: 10px;">📐</div>
+  <h3 style="font-size: 17px; font-weight: 700;">No Semantic Models Configured</h3>
+  <p style="font-size: 13px; color: var(--text-muted); max-width: 440px; margin: 8px auto 16px;">
+    Create or auto-generate a governed semantic model to standardize dimensions and measures across MIS reports and Ask Your Data queries.
+  </p>
+  {% if datasets %}
+  <button class="btn btn-primary" onclick="autoGenSemanticModel()">✨ Auto-Generate from First Dataset</button>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function autoGenSemanticModel() {
+    const sel = document.getElementById('autoGenDatasetId');
+    const dId = sel ? sel.value : null;
+    if (!dId) return showToast('Please select or upload a dataset first', true);
+
+    apiRequest('/api/v1/semantic-models/auto_generate/', 'POST', { dataset_id: dId })
+      .then(res => {
+        showToast('Semantic model generated successfully ✓');
+        setTimeout(() => location.reload(), 700);
+      })
+      .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

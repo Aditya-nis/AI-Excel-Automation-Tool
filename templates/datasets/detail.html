@@ -1,0 +1,110 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ dataset.name }} - Data Explorer{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="font-size: 22px; font-weight: 800;">{{ dataset.name }}</h1>
+      <span class="badge badge-primary">v{{ version.version_number }}</span>
+      <span class="badge {% if version.quality_score >= 85 %}badge-success{% elif version.quality_score >= 70 %}badge-warning{% else %}badge-danger{% endif %}">
+        Quality: {{ version.quality_score }}%
+      </span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+      {{ version.row_count }} records · {{ version.column_count }} columns · Created {{ version.created_at|date:"Y-m-d H:i" }}
+    </p>
+  </div>
+
+  <div style="display: flex; gap: 8px;">
+    <a href="{% url 'understanding' dataset.id %}" class="btn btn-sm">🧠 AI Understanding</a>
+    <a href="{% url 'data_quality' dataset.id %}" class="btn btn-sm">🛡️ Quality Center</a>
+    <a href="{% url 'transformations' dataset.id %}" class="btn btn-sm">🧹 Clean & Undo</a>
+    <a href="{% url 'ask_data' %}?dataset_id={{ dataset.id }}" class="btn btn-sm btn-primary">💬 Ask Questions</a>
+  </div>
+</div>
+
+<!-- Column Statistics & Profiling Grid -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🔬 Column Statistical Profiles</div>
+    <span class="badge badge-neutral">{{ columns|length }} Profiles Computed</span>
+  </div>
+
+  <div class="grid-cols-3" style="gap: 14px;">
+    {% for col in columns %}
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <b style="font-size: 13px;">{{ col.name }}</b>
+        <span class="badge badge-neutral">{{ col.data_type }}</span>
+      </div>
+      
+      <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.6;">
+        <div>Role: <b style="color: var(--primary);">{{ col.inferred_role }}</b> ({{ col.confidence_score|floatformat:2 }})</div>
+        <div>Missing: <b>{{ col.profile.null_count }}</b> ({{ col.profile.null_percentage }}%)</div>
+        <div>Distinct: <b>{{ col.profile.distinct_count }}</b> ({{ col.profile.unique_percentage }}%)</div>
+        {% if col.profile.min_value %}
+        <div>Range: <b>{{ col.profile.min_value }}</b> to <b>{{ col.profile.max_value }}</b></div>
+        {% endif %}
+        {% if col.profile.mean_value is not None %}
+        <div>Mean: <b>{{ col.profile.mean_value }}</b> · Outliers: <b>{{ col.profile.outlier_count }}</b></div>
+        {% endif %}
+      </div>
+
+      {% if col.profile.sample_values %}
+      <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted);">
+        Samples: <span style="color: var(--text-main);">{{ col.profile.sample_values|slice:":3"|join:", " }}</span>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Interactive Data Explorer Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📊 Tabular Data Explorer</div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <input type="search" id="tableSearch" class="form-control" style="width: 220px; font-size: 12px; padding: 4px 8px;" placeholder="Search rows..." oninput="filterLocalRows(this.value)">
+    </div>
+  </div>
+
+  <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+    <table class="data-table" id="explorerTable">
+      <thead>
+        <tr>
+          {% for c in columns %}
+          <th>{{ c.name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in preview_rows %}
+        <tr>
+          {% for c in columns %}
+          <td>{{ r|escape }}</td>
+          {% endfor %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="{{ columns|length|default:1 }}" style="text-align: center; padding: 20px;">No rows available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function filterLocalRows(q) {
+    const term = q.toLowerCase();
+    const rows = document.querySelectorAll('#explorerTable tbody tr');
+    rows.forEach(r => {
+      const txt = r.textContent.toLowerCase();
+      r.style.display = txt.includes(term) ? '' : 'none';
+    });
+  }
+</script>
+{% endblock %}

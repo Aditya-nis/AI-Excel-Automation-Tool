@@ -1,0 +1,72 @@
+{% extends 'base/base.html' %}
+{% block title %}Export Hub — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">📁 Centralized Export Station</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Direct export downloads for datasets, MIS report artifacts, and audit logs.</p>
+  </div>
+</div>
+
+<div class="grid-cols-2" style="margin-bottom: 24px;">
+  <!-- Dataset Parquet / Cleaned Exports -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">💾 Active Workspace Datasets</div>
+    </div>
+    {% if datasets %}
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      {% for d in datasets %}
+      <div style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; font-size: 14px;">{{ d.name }}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            Active v{{ d.active_version.version_number|default:"1" }} • {{ d.active_version.row_count }} rows • Quality: {{ d.active_version.quality_score }}%
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <a href="{% url 'search_filter' %}?export=csv" class="btn btn-sm btn-success">Download CSV</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 20px; color: var(--text-muted);">No datasets available.</div>
+    {% endif %}
+  </div>
+
+  <!-- Quick MIS Artifact Downloads -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📑 Generated MIS Report Artifacts</div>
+      <a href="{% url 'report_history' %}" class="btn btn-sm">All Reports</a>
+    </div>
+    {% if report_runs %}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {% for r in report_runs %}
+      <div style="padding: 12px 14px; border: 1px solid var(--border-light); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 600; font-size: 13px;">{{ r.report_definition.name }}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">{{ r.generated_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          {% if r.excel_export_path %}
+          <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=excel" class="badge badge-success" style="text-decoration: none;">XLSX</a>
+          {% endif %}
+          {% if r.pdf_export_path %}
+          <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=pdf" class="badge badge-primary" style="text-decoration: none;">PDF</a>
+          {% endif %}
+          {% if r.csv_export_path %}
+          <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=csv" class="badge badge-neutral" style="text-decoration: none;">CSV</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 20px; color: var(--text-muted);">No report runs found.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

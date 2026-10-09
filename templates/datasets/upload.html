@@ -1,0 +1,165 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Upload Data - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <h1 style="font-size: 22px; font-weight: 800;">Data Upload & File Management</h1>
+  <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+    Upload CSV or Excel files. Files are verified for signatures, SHA-256 integrity, and stored immutably.
+  </p>
+</div>
+
+<!-- Upload Card -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📤 Upload New Source File</div>
+    <span class="badge badge-neutral">Max 50MB · CSV, XLSX, XLS</span>
+  </div>
+
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <div style="font-size: 40px; margin-bottom: 8px;">📑</div>
+    <h3 style="font-size: 16px; font-weight: 700; color: var(--primary);">Click or Drag & Drop File Here</h3>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+      Supports Microsoft Excel (.xlsx, .xls) and Comma-Separated Values (.csv)
+    </p>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;" onchange="handleFileSelect(this.files[0])">
+  </div>
+
+  <div id="uploadProgress" style="display: none; margin-top: 16px;">
+    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+      <span id="uploadStatusText">Uploading & Verifying...</span>
+      <span id="uploadPercent">0%</span>
+    </div>
+    <div style="height: 6px; background: var(--border); border-radius: 99px; overflow: hidden;">
+      <div id="progressBar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Source File Inventory -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📁 Workspace File Inventory</div>
+    <span class="badge badge-primary">{{ files.count }} files</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Format</th>
+          <th>Size</th>
+          <th>SHA-256 Hash</th>
+          <th>Sheets</th>
+          <th>Uploaded At</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in files %}
+        <tr>
+          <td><b>{{ f.filename }}</b></td>
+          <td><span class="badge badge-neutral">{{ f.file_format|upper }}</span></td>
+          <td>{{ f.file_size_bytes|filesizeformat }}</td>
+          <td><code style="font-size: 11px; color: var(--text-muted);">{{ f.sha256_hash|truncatechars:16 }}</code></td>
+          <td>
+            {% if f.sheet_names %}
+              {{ f.sheet_names|join:", " }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{{ f.created_at|date:"Y-m-d H:i" }}</td>
+          <td>
+            <span class="badge {% if f.status == 'ready' %}badge-success{% elif f.status == 'processing' %}badge-warning{% else %}badge-danger{% endif %}">
+              {{ f.status|upper }}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-sm" onclick="ingestExistingFile({{ f.id }})">Ingest Dataset</button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            No source files uploaded yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const dropzone = document.getElementById('dropzone');
+
+  ['dragenter', 'dragover'].forEach(name => {
+    dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.style.background = '#e0e7ff'; });
+  });
+
+  ['dragleave', 'drop'].forEach(name => {
+    dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.style.background = ''; });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length) handleFileSelect(files[0]);
+  });
+
+  function handleFileSelect(file) {
+    if (!file) return;
+
+    const prog = document.getElementById('uploadProgress');
+    const bar = document.getElementById('progressBar');
+    const pText = document.getElementById('uploadPercent');
+    const sText = document.getElementById('uploadStatusText');
+
+    prog.style.display = 'block';
+    bar.style.width = '30%';
+    pText.textContent = '30%';
+    sText.textContent = `Validating & Uploading ${file.name}...`;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('auto_ingest', 'true');
+
+    fetch('/api/v1/files/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF_TOKEN
+      },
+      body: formData
+    })
+    .then(async res => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      bar.style.width = '100%';
+      pText.textContent = '100%';
+      sText.textContent = 'Upload & Ingestion Complete ✓';
+      showToast(`Dataset '${data.dataset_name}' created successfully!`);
+      setTimeout(() => {
+        window.location.href = `/datasets/${data.dataset_id}/`;
+      }, 1000);
+    })
+    .catch(err => {
+      prog.style.display = 'none';
+      showToast(err.message, true);
+    });
+  }
+
+  function ingestExistingFile(fileId) {
+    // Triggers ingestion
+    apiRequest(`/api/v1/files/${fileId}/`)
+      .then(f => {
+        showToast('File ready for exploration.');
+      })
+      .catch(err => showToast(err.message, true));
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends 'base/base.html' %}
+{% block title %}MIS Home — AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">🏠 MIS Executive Home</h1>
+    <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">Real-time management information cockpit, report schedules, and governance status.</p>
+  </div>
+  <div style="display: flex; gap: 10px;">
+    <a href="{% url 'reports' %}" class="btn btn-primary">📑 Build MIS Report</a>
+    <a href="{% url 'pivot_table' %}" class="btn">🗂️ Pivot Matrix</a>
+    <a href="{% url 'export_hub' %}" class="btn">📁 Export Station</a>
+  </div>
+</div>
+
+<!-- Executive Summary Counters -->
+<div class="grid-cols-4" style="margin-bottom: 24px;">
+  <div class="kpi-card">
+    <div class="kpi-label">Active Datasets</div>
+    <div class="kpi-value">{{ total_datasets }}</div>
+    <div class="kpi-sub">Total records: {{ total_rows|default:"0" }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Average Quality</div>
+    <div class="kpi-value" style="color: var(--success);">{{ avg_quality }}%</div>
+    <div class="kpi-sub">Standard 4-pillar score</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Generated Reports</div>
+    <div class="kpi-value">{{ total_reports }}</div>
+    <div class="kpi-sub">Archived MIS runs</div>
+  </div>
+  <div class="kpi-card" style="border-left: 3px solid var(--danger);">
+    <div class="kpi-label">Open Exceptions</div>
+    <div class="kpi-value" style="color: {% if total_exceptions > 0 %}var(--danger){% else %}var(--success){% endif %};">{{ total_exceptions }}</div>
+    <div class="kpi-sub">{{ quality_issues_count }} quality + {{ anomalies_count }} anomalies</div>
+  </div>
+</div>
+
+<!-- Quick Periodic MIS Reports Launchpad -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📅 Quick MIS Periodic Engines</div>
+      <div class="card-subtitle">Generate grounded period summaries directly from verified active dataset records</div>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+    <a href="{% url 'daily_report' %}" style="text-decoration: none; color: inherit; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
+      <div style="font-weight: 700; font-size: 15px;">Daily Report</div>
+      <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Day-by-day volume, run rates, and daily variance.</div>
+    </a>
+    <a href="{% url 'weekly_report' %}" style="text-decoration: none; color: inherit; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size: 24px; margin-bottom: 8px;">📅</div>
+      <div style="font-weight: 700; font-size: 15px;">Weekly Report</div>
+      <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Weekly aggregation, week-over-week pacing.</div>
+    </a>
+    <a href="{% url 'monthly_report' %}" style="text-decoration: none; color: inherit; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size: 24px; margin-bottom: 8px;">🗓️</div>
+      <div style="font-weight: 700; font-size: 15px;">Monthly Report</div>
+      <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Full monthly financial & operational scorecard.</div>
+    </a>
+    <a href="{% url 'yearly_report' %}" style="text-decoration: none; color: inherit; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size: 24px; margin-bottom: 8px;">📆</div>
+      <div style="font-weight: 700; font-size: 15px;">Yearly Report</div>
+      <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Annual aggregates, year-to-date and multi-year comparisons.</div>
+    </a>
+  </div>
+</div>
+
+<div class="grid-cols-2">
+  <!-- Recent Reports Run -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📑 Recent MIS Report Runs</div>
+      <a href="{% url 'report_history' %}" class="btn btn-sm">View All History</a>
+    </div>
+    {% if recent_reports %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Report</th>
+            <th>Generated</th>
+            <th>Downloads</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_reports %}
+          <tr>
+            <td>
+              <div style="font-weight: 600;">{{ r.report_definition.name }}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">{{ r.report_definition.report_type|upper }}</div>
+            </td>
+            <td>{{ r.generated_at|date:"M d, Y H:i" }}</td>
+            <td>
+              <div style="display: flex; gap: 6px;">
+                {% if r.excel_export_path %}
+                <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=excel" class="badge badge-success" style="text-decoration: none;">XLSX</a>
+                {% endif %}
+                {% if r.pdf_export_path %}
+                <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=pdf" class="badge badge-primary" style="text-decoration: none;">PDF</a>
+                {% endif %}
+                {% if r.csv_export_path %}
+                <a href="/api/v1/reports/{{ r.report_definition.id }}/export/?run_id={{ r.id }}&format=csv" class="badge badge-neutral" style="text-decoration: none;">CSV</a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+      No reports generated yet. <a href="{% url 'reports' %}">Create your first report</a>.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Operational Activity & Governance Log -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Activity & Governance Trail</div>
+      <a href="{% url 'audit' %}" class="btn btn-sm">Full Audit</a>
+    </div>
+    {% if recent_audits %}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {% for ev in recent_audits %}
+      <div style="padding: 10px 14px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 600; font-size: 13px;">{{ ev.description }}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">By {{ ev.actor_username|default:"System" }} • {{ ev.event_type }}</div>
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted);">{{ ev.timestamp|timesince }} ago</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+      No audit records recorded yet.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

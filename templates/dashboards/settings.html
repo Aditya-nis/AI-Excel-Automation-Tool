@@ -1,0 +1,91 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Settings - AI Power BI Engine{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <h1 style="font-size: 22px; font-weight: 800;">⚙️ Application & Workspace Settings</h1>
+  <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+    Manage workspace access, members, roles, and AI provider configurations.
+  </p>
+</div>
+
+<!-- Workspace Info Card -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🏢 Workspace Profile</div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; font-size: 13.5px;">
+    <div>
+      <label class="form-label">Name:</label>
+      <b>{{ workspace.name }}</b>
+    </div>
+    <div>
+      <label class="form-label">Identifier Slug:</label>
+      <code>{{ workspace.slug }}</code>
+    </div>
+    <div>
+      <label class="form-label">Owner:</label>
+      <span>{{ workspace.owner.username }}</span>
+    </div>
+    <div>
+      <label class="form-label">Created At:</label>
+      <span>{{ workspace.created_at|date:"Y-m-d H:i" }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Workspace Members & RBAC -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">👥 Team Members & Role-Based Access Control</div>
+    <span class="badge badge-primary">{{ memberships.count }} Members</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Default Workspace</th>
+          <th>Joined At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in memberships %}
+        <tr>
+          <td><b>{{ m.user.username }}</b> ({{ m.user.email|default:"No email" }})</td>
+          <td><span class="badge badge-primary">{{ m.get_role_display|upper }}</span></td>
+          <td>{% if m.is_default %}✓ Yes{% else %}No{% endif %}</td>
+          <td>{{ m.created_at|date:"Y-m-d" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AI Integration Status -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🤖 AI Engine & Provider Status</div>
+  </div>
+  <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+    AI Power BI uses deterministic local analytical compilers for all mathematical, KPI, and data quality operations. External LLM integrations provide optional natural-language query expansion.
+  </p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+      <div style="font-weight: 700;">Deterministic Rule & Profile Engine</div>
+      <div style="margin-top: 6px;"><span class="badge badge-success">✓ 100% OPERATIONAL (LOCAL)</span></div>
+      <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Pandas, PyArrow, In-Memory Aggregations</div>
+    </div>
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+      <div style="font-weight: 700;">External AI Provider (Gemini / OpenAI)</div>
+      <div style="margin-top: 6px;"><span class="badge badge-neutral">CONFIGURED VIA ENV</span></div>
+      <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Set GEMINI_API_KEY or OPENAI_API_KEY in .env</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
