@@ -154,7 +154,13 @@ def save_version_dataframe(dataset, df, parent_version=None, transformation_run=
         if df_to_save[col].dtype == 'object':
             df_to_save[col] = df_to_save[col].astype(str).replace({'nan': None, 'None': None, '<NA>': None})
             
-    df_to_save.to_parquet(parquet_path, index=False, engine='pyarrow')
+    try:
+        df_to_save.to_parquet(parquet_path, index=False)
+    except Exception:
+        try:
+            df_to_save.to_parquet(parquet_path, index=False, engine='fastparquet')
+        except Exception:
+            df_to_save.to_parquet(parquet_path, index=False, engine='pyarrow')
 
     version = DatasetVersion.objects.create(
         dataset=dataset,

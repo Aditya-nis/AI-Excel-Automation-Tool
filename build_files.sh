@@ -31,4 +31,9 @@ echo "Collecting static files into staticfiles/..."
 echo "Running migrations..."
 "$PY_EXEC" manage.py migrate --noinput || echo "Database migrations deferred (database may be configured via dashboard environment variables)."
 
+# 5. Clean up temporary build venv to prevent it from inflating lambda bundle size
+echo "Cleaning up temporary build venv..."
+rm -rf "$VENV_DIR"
+
 echo "=== Vercel Build Completed Successfully ==="
+
