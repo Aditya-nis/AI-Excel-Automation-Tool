@@ -5,9 +5,32 @@ import numpy as np
 import pandas as pd
 
 class SafeJSONEncoder(json.JSONEncoder):
-    """Encodes NumPy, Pandas, Decimal, and datetime objects safely."""
+    """Encodes NumPy, Pandas, Decimal, datetime, and NaN/Inf objects safely into valid JSON (RFC 8259)."""
+    def encode(self, obj):
+        def _sanitize(o):
+            if isinstance(o, Decimal):
+                return float(o)
+            if isinstance(o, (datetime, date)):
+                return o.isoformat()
+            if isinstance(o, np.integer):
+                return int(o)
+            if isinstance(o, (np.floating, float)):
+                if np.isnan(o) or np.isinf(o):
+                    return None
+                return float(o)
+            if isinstance(o, np.ndarray):
+                return [_sanitize(x) for x in o.tolist()]
+            if pd.isna(o):
+                return None
+            if isinstance(o, dict):
+                return {k: _sanitize(v) for k, v in o.items()}
+            if isinstance(o, (list, tuple)):
+                return [_sanitize(x) for x in o]
+            return o
+        return super().encode(_sanitize(obj))
+
     def default(self, obj):
-        if isinstance(obj, (Decimal,)):
+        if isinstance(obj, Decimal):
             return float(obj)
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()

@@ -22,8 +22,31 @@ def compile_and_execute_query(dataset, user_query, semantic_model=None):
     cols = list(df.columns)
     col_map = {c.lower(): c for c in cols}
 
+    def _clean_val(val):
+        if pd.isna(val):
+            return float('nan')
+        s = str(val).strip()
+        if not s or s in ('nan', 'None', '<NA>'):
+            return float('nan')
+        is_neg = False
+        if s.startswith('(') and s.endswith(')'):
+            is_neg = True
+            s = s[1:-1]
+        elif s.startswith('-'):
+            is_neg = True
+            s = s[1:]
+        elif s.endswith('-'):
+            is_neg = True
+            s = s[:-1]
+        cleaned = re.sub(r'[\$,₹€£\s,]', '', s)
+        try:
+            num = float(cleaned)
+            return -num if is_neg else num
+        except (ValueError, TypeError):
+            return float('nan')
+
     # Find candidate measure column
-    numeric_cols = [c for c in cols if pd.to_numeric(df[c].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce').notna().sum() / max(1, len(df)) >= 0.5]
+    numeric_cols = [c for c in cols if df[c].apply(_clean_val).notna().sum() / max(1, len(df)) >= 0.5]
     
     selected_measure = None
     for nc in numeric_cols:
@@ -74,10 +97,7 @@ def compile_and_execute_query(dataset, user_query, semantic_model=None):
 
     # Clean measure values for calculation
     if selected_measure:
-        filtered_df['__calc_meas'] = pd.to_numeric(
-            filtered_df[selected_measure].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True),
-            errors='coerce'
-        )
+        filtered_df['__calc_meas'] = filtered_df[selected_measure].apply(_clean_val)
     else:
         filtered_df['__calc_meas'] = 1
         selected_measure = "Record_Count"

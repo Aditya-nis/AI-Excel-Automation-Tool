@@ -1,4 +1,5 @@
 import json
+import re
 import pandas as pd
 import numpy as np
 from django.shortcuts import render, redirect, get_object_or_404
@@ -23,6 +24,33 @@ from apps.anomalies.models import AnomalyEvent, MetricForecast
 from apps.anomalies.services import detect_anomalies_for_dataset
 from apps.notifications.models import Notification
 from apps.approvals.models import ApprovalRequest
+
+def clean_numeric_series(series):
+    """Safely converts string/object series to numeric, properly preserving accounting negatives e.g. (100.50)."""
+    def _clean_val(val):
+        if pd.isna(val):
+            return float('nan')
+        s = str(val).strip()
+        if not s or s in ('nan', 'None', '<NA>'):
+            return float('nan')
+        is_neg = False
+        if s.startswith('(') and s.endswith(')'):
+            is_neg = True
+            s = s[1:-1]
+        elif s.startswith('-'):
+            is_neg = True
+            s = s[1:]
+        elif s.endswith('-'):
+            is_neg = True
+            s = s[:-1]
+        cleaned = re.sub(r'[\$,₹€£\s,]', '', s)
+        try:
+            num = float(cleaned)
+            return -num if is_neg else num
+        except (ValueError, TypeError):
+            return float('nan')
+    return series.apply(_clean_val)
+
 
 @login_required
 def dashboard_home(request):
@@ -57,8 +85,7 @@ def dashboard_home(request):
             # Compute KPI cards from currency / measure columns
             meas_cols = [c.name for c in columns if c.inferred_role in ['currency', 'measure', 'quantity'] or c.data_type in ['integer', 'decimal']][:4]
             for mc in meas_cols:
-                num = df[mc].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True)
-                s = pd.to_numeric(num, errors='coerce').dropna()
+                s = clean_numeric_series(df[mc]).dropna()
                 if len(s) > 0:
                     kpis.append({
                         'label': f"Total {mc.replace('_', ' ').title()}",
@@ -73,7 +100,7 @@ def dashboard_home(request):
                 cdim = cat_cols[0]
                 cmeas = meas_cols[0]
                 df_c = df.copy()
-                df_c['__m'] = pd.to_numeric(df_c[cmeas].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce')
+                df_c['__m'] = clean_numeric_series(df_c[cmeas])
                 grp = df_c.groupby(cdim)['__m'].sum().sort_values(ascending=False).head(8)
                 chart_data = {
                     'labels': [str(k) for k in grp.index],
@@ -498,7 +525,7 @@ def analytics_view(request):
             df = load_version_dataframe(v)
             if active_dim in df.columns and active_meas in df.columns:
                 df_calc = df.copy()
-                df_calc['__m'] = pd.to_numeric(df_calc[active_meas].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce')
+                df_calc['__m'] = clean_numeric_series(df_calc[active_meas])
                 
                 # Breakdown by selected dimension
                 grp = df_calc.groupby(active_dim)['__m'].agg(['sum', 'mean', 'count']).sort_values(by='sum', ascending=False).head(10)
@@ -568,7 +595,7 @@ def _compute_period_report(request, grain_name, date_format_str):
                 df = load_version_dataframe(v)
                 df_calc = df.copy()
                 df_calc['__dt'] = pd.to_datetime(df_calc[date_col], errors='coerce')
-                df_calc['__num'] = pd.to_numeric(df_calc[meas_col].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce')
+                df_calc['__num'] = clean_numeric_series(df_calc[meas_col])
                 df_calc = df_calc.dropna(subset=['__dt', '__num'])
 
                 df_calc['__period'] = df_calc['__dt'].dt.strftime(date_format_str)
@@ -582,8 +609,8 @@ def _compute_period_report(request, grain_name, date_format_str):
                 for period_label, r in grouped.iterrows():
                     val = float(r['total_sum'])
                     growth = None
-                    if prev_val is not None and prev_val > 0:
-                        growth = round(((val - prev_val) / prev_val) * 100, 1)
+                    if prev_val is not None and prev_val != 0:
+                        growth = round(((val - prev_val) / abs(prev_val)) * 100, 1)
                     prev_val = val
 
                     period_rows.append({
@@ -730,7 +757,7 @@ def pivot_table_view(request):
             df = load_version_dataframe(v)
             if row_col in df.columns and col_col in df.columns and val_col in df.columns:
                 df_calc = df.copy()
-                df_calc['__v'] = pd.to_numeric(df_calc[val_col].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce')
+                df_calc['__v'] = clean_numeric_series(df_calc[val_col])
                 
                 pivot = pd.pivot_table(
                     df_calc,

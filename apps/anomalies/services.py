@@ -22,8 +22,32 @@ def detect_anomalies_for_dataset(dataset, user=None):
     # Find numeric measures
     numeric_cols = [c.name for c in version.columns.all() if c.data_type in ['integer', 'decimal'] or c.inferred_role in ['currency', 'measure', 'quantity']]
 
+    import re
+    def _clean_val(v):
+        if pd.isna(v):
+            return np.nan
+        s = str(v).strip()
+        if not s or s in ('nan', 'None', '<NA>'):
+            return np.nan
+        is_neg = False
+        if s.startswith('(') and s.endswith(')'):
+            is_neg = True
+            s = s[1:-1]
+        elif s.startswith('-'):
+            is_neg = True
+            s = s[1:]
+        elif s.endswith('-'):
+            is_neg = True
+            s = s[:-1]
+        cleaned = re.sub(r'[\$,₹€£\s,]', '', s)
+        try:
+            num = float(cleaned)
+            return -num if is_neg else num
+        except (ValueError, TypeError):
+            return np.nan
+
     for col in numeric_cols:
-        series = pd.to_numeric(df[col].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce').dropna()
+        series = df[col].apply(_clean_val).dropna()
         if len(series) < 5:
             continue
 

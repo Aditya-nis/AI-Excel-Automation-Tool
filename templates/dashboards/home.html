@@ -218,12 +218,14 @@
 
 {% block extra_js %}
 {% if chart_data %}
+{{ chart_data|json_script:"main-chart-data" }}
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const labels = {{ chart_data.labels|safe }};
-    const values = {{ chart_data.values|safe }};
-    const title = "{{ chart_data.title|escapejs }}";
-    renderChart('mainDashboardChart', 'bar', labels, values, title);
+    const el = document.getElementById('main-chart-data');
+    if (el) {
+      const data = JSON.parse(el.textContent);
+      renderChart('mainDashboardChart', 'bar', data.labels || [], data.values || [], data.title || '');
+    }
   });
 </script>
 {% endif %}

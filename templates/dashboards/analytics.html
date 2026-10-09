@@ -94,15 +94,25 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if chart_payload %}
+{{ chart_payload|json_script:"analytics-breakdown-data" }}
+{% endif %}
+{% if trend_payload %}
+{{ trend_payload|json_script:"analytics-trend-data" }}
+{% endif %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    {% if chart_payload %}
-    renderChart('breakdown-chart', 'bar', {{ chart_payload.labels|safe }}, {{ chart_payload.values|safe }}, "{{ chart_payload.title }}");
-    {% endif %}
+    const breakdownEl = document.getElementById('analytics-breakdown-data');
+    if (breakdownEl) {
+      const p = JSON.parse(breakdownEl.textContent);
+      renderChart('breakdown-chart', 'bar', p.labels || [], p.values || [], p.title || '');
+    }
 
-    {% if trend_payload %}
-    renderChart('trend-chart', 'line', {{ trend_payload.labels|safe }}, {{ trend_payload.values|safe }}, "{{ trend_payload.title }}");
-    {% endif %}
+    const trendEl = document.getElementById('analytics-trend-data');
+    if (trendEl) {
+      const t = JSON.parse(trendEl.textContent);
+      renderChart('trend-chart', 'line', t.labels || [], t.values || [], t.title || '');
+    }
   });
 </script>
 {% endblock %}

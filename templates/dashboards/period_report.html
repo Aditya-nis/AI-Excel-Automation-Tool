@@ -91,11 +91,16 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if chart_payload %}
+{{ chart_payload|json_script:"period-report-data" }}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    {% if chart_payload %}
-    renderChart('period-chart', 'bar', {{ chart_payload.labels|safe }}, {{ chart_payload.values|safe }}, "{{ chart_payload.title }}");
-    {% endif %}
+    const el = document.getElementById('period-report-data');
+    if (el) {
+      const p = JSON.parse(el.textContent);
+      renderChart('period-chart', 'bar', p.labels || [], p.values || [], p.title || '');
+    }
   });
 </script>
+{% endif %}
 {% endblock %}

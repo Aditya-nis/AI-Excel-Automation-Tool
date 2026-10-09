@@ -65,13 +65,34 @@ def apply_single_step(df, step):
     elif op_type == 'convert_type':
         target_type = params.get('target_type', 'numeric')
         if col in df.columns:
+            def _clean_numeric(s):
+                if pd.isna(s):
+                    return np.nan
+                raw = str(s).strip()
+                if not raw or raw in ('nan', 'None', '<NA>'):
+                    return np.nan
+                is_negative = False
+                if raw.startswith('(') and raw.endswith(')'):
+                    is_negative = True
+                    raw = raw[1:-1]
+                elif raw.startswith('-'):
+                    is_negative = True
+                    raw = raw[1:]
+                elif raw.endswith('-'):
+                    is_negative = True
+                    raw = raw[:-1]
+                cleaned = re.sub(r'[\$,₹€£\s,]', '', raw)
+                try:
+                    val = float(cleaned)
+                    return -val if is_negative else val
+                except (ValueError, TypeError):
+                    return np.nan
+
             if target_type == 'numeric':
-                cleaned = df[col].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True)
-                df[col] = pd.to_numeric(cleaned, errors='coerce')
+                df[col] = df[col].apply(_clean_numeric)
                 affected_rows = int(df[col].notna().sum())
             elif target_type == 'integer':
-                cleaned = df[col].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True)
-                df[col] = pd.to_numeric(cleaned, errors='coerce').round().astype('Int64')
+                df[col] = df[col].apply(_clean_numeric).round().astype('Int64')
                 affected_rows = int(df[col].notna().sum())
             elif target_type == 'text':
                 df[col] = df[col].astype(str)

@@ -32,9 +32,35 @@ def generate_mis_report(report_def, user=None, parameters=None):
                 date_col = c
                 break
 
+    def _clean_series_numeric(series):
+        def _clean(val):
+            if pd.isna(val):
+                return float('nan')
+            s = str(val).strip()
+            if not s or s in ('nan', 'None', '<NA>'):
+                return float('nan')
+            is_neg = False
+            if s.startswith('(') and s.endswith(')'):
+                is_neg = True
+                s = s[1:-1]
+            elif s.startswith('-'):
+                is_neg = True
+                s = s[1:]
+            elif s.endswith('-'):
+                is_neg = True
+                s = s[:-1]
+            import re
+            cleaned = re.sub(r'[\$,₹€£\s,]', '', s)
+            try:
+                num = float(cleaned)
+                return -num if is_neg else num
+            except (ValueError, TypeError):
+                return float('nan')
+        return series.apply(_clean)
+
     metric_cols = report_def.metric_columns
     if not metric_cols:
-        metric_cols = [c for c in df.columns if pd.to_numeric(df[c].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce').notna().sum() > len(df) * 0.5][:3]
+        metric_cols = [c for c in df.columns if _clean_series_numeric(df[c]).notna().sum() > len(df) * 0.5][:3]
 
     dim_cols = report_def.dimension_columns
     if not dim_cols:
@@ -43,7 +69,7 @@ def generate_mis_report(report_def, user=None, parameters=None):
     # Calculate Summary KPIs
     kpis = {}
     for mc in metric_cols:
-        cleaned_num = pd.to_numeric(df[mc].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce').dropna()
+        cleaned_num = _clean_series_numeric(df[mc]).dropna()
         if len(cleaned_num) > 0:
             total_sum = round(float(cleaned_num.sum()), 2)
             avg_val = round(float(cleaned_num.mean()), 2)
@@ -61,7 +87,7 @@ def generate_mis_report(report_def, user=None, parameters=None):
         primary_dim = dim_cols[0]
         primary_meas = metric_cols[0]
         df_calc = df.copy()
-        df_calc['__metric'] = pd.to_numeric(df_calc[primary_meas].astype(str).str.replace(r'[\$,₹€£\s,()]', '', regex=True), errors='coerce')
+        df_calc['__metric'] = _clean_series_numeric(df_calc[primary_meas])
         
         grouped = df_calc.groupby(primary_dim)['__metric'].agg(['sum', 'count', 'mean']).reset_index()
         grouped = grouped.sort_values(by='sum', ascending=False).head(15)
