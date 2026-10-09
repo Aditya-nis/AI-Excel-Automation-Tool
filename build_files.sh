@@ -27,6 +27,10 @@ echo "Active build Python: $("$PY_EXEC" --version 2>&1 || echo "$PY_EXEC")"
 echo "Collecting static files into staticfiles/..."
 "$PY_EXEC" manage.py collectstatic --noinput --clear || echo "Pre-collected static files preserved."
 
+# Ensure static files are accessible at both /static/... and root paths on Vercel CDN
+mkdir -p staticfiles/static
+cp -r staticfiles/css staticfiles/js staticfiles/admin staticfiles/rest_framework staticfiles/static/ 2>/dev/null || true
+
 # 4. Run database migrations safely (if database is configured)
 echo "Running migrations..."
 "$PY_EXEC" manage.py migrate --noinput || echo "Database migrations deferred (database may be configured via dashboard environment variables)."
