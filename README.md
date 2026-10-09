@@ -147,10 +147,80 @@ Visit `http://localhost:8000/` in your browser.
 
 ## Running Automated Tests
 
-Run the full automated test suite covering data integrity, decimal precision, undo/lineage, cardinality safeguards, schema drift, and MIS exports:
+Run the full automated test suite covering data integrity, decimal precision, undo/lineage, cardinality safeguards, schema drift, MIS reports, and UI views:
 
 ```bash
-python manage.py test apps.core apps.datasets apps.cleaning apps.consolidation apps.automation apps.reports apps.ask_data
+python manage.py test apps.dashboards apps.accounts apps.anomalies apps.notifications apps.approvals apps.core
 ```
 
-**Test Status**: 14 tests run, 14 passing (100% OK).
+---
+
+## 🐳 Docker Deployment Guide
+
+The project includes an optimized multi-stage `Dockerfile` and `docker-compose.yml` orchestrating Django, PostgreSQL, Redis, Celery Worker, and Celery Beat.
+
+### 1. Run Complete Stack via Docker Compose
+```bash
+docker compose up --build
+```
+This automatically boots:
+- `web`: Gunicorn WSGI server on port `8000` with automated health checks
+- `db`: PostgreSQL 15 database on port `5432`
+- `redis`: Redis 7 broker on port `6379`
+- `worker`: Asynchronous Celery background job worker
+- `beat`: Celery Beat recurring workflow scheduler
+
+### 2. Run Container Standalone
+```bash
+docker build -t advancedexcel:latest .
+docker run -p 8000:8000 -e SECRET_KEY="your-secret" advancedexcel:latest
+```
+
+---
+
+## ▲ Vercel Hosting Guide
+
+The project is pre-configured for instant zero-config deployment on Vercel:
+
+### 1. Install Vercel CLI (Optional)
+```bash
+npm install -g vercel
+```
+
+### 2. Deploy via Vercel CLI
+```bash
+vercel
+# For production:
+vercel --prod
+```
+
+### 3. Deploy via GitHub Integration
+1. Push your code to GitHub (see guide below).
+2. Go to [Vercel Dashboard](https://vercel.com/dashboard) and click **"Add New Project"**.
+3. Import your GitHub repository.
+4. Add the following **Environment Variables** in the Vercel project settings:
+   - `SECRET_KEY`: `your-random-django-secret-key`
+   - `DEBUG`: `False`
+   - `DATABASE_URL`: Your PostgreSQL connection URI (e.g. from [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres)).
+   - `CSRF_TRUSTED_ORIGINS`: `https://your-project.vercel.app`
+5. Click **Deploy**. Vercel will run `build_files.sh`, collect static assets using WhiteNoise, and serve the application via `@vercel/python` serverless functions.
+
+---
+
+## 🐙 How to Push to GitHub
+
+The repository is already initialized on branch `main` with all files committed and `.gitignore` configured.
+
+Run the following commands in your terminal:
+
+```bash
+# 1. Add your GitHub remote repository URL
+git remote add origin https://github.com/<YOUR-USERNAME>/<YOUR-REPO-NAME>.git
+
+# 2. Ensure main branch is active
+git branch -M main
+
+# 3. Push to GitHub
+git push -u origin main
+```
+
