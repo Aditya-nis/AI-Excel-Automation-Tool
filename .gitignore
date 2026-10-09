@@ -35,8 +35,8 @@ staticfiles/
 
 # Environment Variables & Secrets
 .env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # IDE & Editor
 .vscode/
