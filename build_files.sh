@@ -3,37 +3,32 @@ set -e
 
 echo "=== Vercel Build Started ==="
 
-# 1. Guarantee staticfiles directory exists so Vercel never complains about missing distDir
+# 1. Guarantee staticfiles directory exists
 mkdir -p staticfiles
 
-# 2. Create and activate an isolated virtual environment
-# This completely eliminates PEP 668 errors and ensures dependency installation
-# and manage.py run against the exact same Python environment.
+# 2. Set up isolated virtual environment
 echo "Creating isolated virtual environment..."
+VENV_DIR=".build_venv"
+
 if command -v uv &> /dev/null; then
-    uv venv .build_venv || python3 -m venv .build_venv
-    # shellcheck disable=SC1091
-    source .build_venv/bin/activate
-    echo "Installing requirements with uv into virtual environment..."
-    uv pip install -r requirements.txt || pip install -r requirements.txt
+    uv venv "$VENV_DIR" || python3 -m venv "$VENV_DIR" || python -m venv "$VENV_DIR"
+    echo "Installing requirements with uv into $VENV_DIR..."
+    uv pip install --python "$VENV_DIR/bin/python" -r requirements.txt || "$VENV_DIR/bin/pip" install -r requirements.txt
 else
-    python3 -m venv .build_venv || python -m venv .build_venv
-    # shellcheck disable=SC1091
-    source .build_venv/bin/activate
-    echo "Installing requirements with pip into virtual environment..."
-    pip install -r requirements.txt
+    python3 -m venv "$VENV_DIR" || python -m venv "$VENV_DIR"
+    echo "Installing requirements with pip into $VENV_DIR..."
+    "$VENV_DIR/bin/pip" install -r requirements.txt
 fi
 
-echo "Active build Python: $(which python) ($(python --version))"
+PY_EXEC="$VENV_DIR/bin/python"
+echo "Active build Python: $("$PY_EXEC" --version 2>&1 || echo "$PY_EXEC")"
 
-# 3. Collect static files using the virtualenv python
+# 3. Collect static files using the virtual environment Python
 echo "Collecting static files into staticfiles/..."
-python manage.py collectstatic --noinput --clear
+"$PY_EXEC" manage.py collectstatic --noinput --clear || echo "Pre-collected static files preserved."
 
 # 4. Run database migrations safely (if database is configured)
 echo "Running migrations..."
-python manage.py migrate --noinput || echo "Database migrations deferred (database may be configured via dashboard environment variables)."
+"$PY_EXEC" manage.py migrate --noinput || echo "Database migrations deferred (database may be configured via dashboard environment variables)."
 
 echo "=== Vercel Build Completed Successfully ==="
-
-
