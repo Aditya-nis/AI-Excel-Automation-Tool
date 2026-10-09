@@ -40,8 +40,12 @@ if os.environ.get('VERCEL') and not os.environ.get('DATABASE_URL'):
             
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        if not User.objects.filter(username='admin').exists():
-            admin_pwd = os.environ.get('ADMIN_PASSWORD', 'admin12345')
+        admin_pwd = os.environ.get('ADMIN_PASSWORD', 'admin12345')
+        admin_user = User.objects.filter(username='admin').first()
+        if not admin_user:
             User.objects.create_superuser('admin', 'admin@example.com', admin_pwd)
+        else:
+            admin_user.set_password(admin_pwd)
+            admin_user.save()
     except Exception as exc:
         print(f"Vercel startup database check notice: {exc}")
